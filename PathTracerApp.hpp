@@ -35,7 +35,7 @@ private:
     //GLFWkeyfun keyCallback();
 
     std::string name;
-    int windowWidth{}, windowHeight{};
+    uint32_t windowWidth{}, windowHeight{};
     GLFWwindow* window;
 
     vk::raii::Context context;
@@ -43,11 +43,12 @@ private:
     vk::raii::PhysicalDevice physicalDevice;
     vk::raii::Device device;
     VkSurfaceKHR glfwSurface;
+    vk::SurfaceFormatKHR surfaceFormat;
     vk::raii::SurfaceKHR surface;
 
     vk::raii::SwapchainKHR swapchain;
-    //std.:std::array<vk::raii..image>;
-    //std::array<vk::raii::ImageView> imageViews;
+    std::vector<VkImage> swapchainImages; // try converting elements to vk::raii::Image if problems occur
+    std::vector<vk::raii::ImageView> swapchainImageViews;
     std::array<uint32_t, 3> queueFamilyIndices;
     //vk::raii::Queue graphicsQueue;
     //vk::raii::Queue computeQueue;

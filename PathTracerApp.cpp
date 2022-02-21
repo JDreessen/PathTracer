@@ -7,16 +7,10 @@
 #include "GLFW/glfw3.h"
 
 PathTracerApp::PathTracerApp()
-        : window()
-        , windowWidth()
-        , windowHeight()
-        , vkInstance(VK_NULL_HANDLE)
-        , physicalDevice(VK_NULL_HANDLE)
-        , device(VK_NULL_HANDLE)
-        , glfwSurface(VK_NULL_HANDLE)
-        , surface(VK_NULL_HANDLE)
-        , queueFamilyIndices{~0u, ~0u, ~0u}
-        , swapchain(VK_NULL_HANDLE) {}
+        : window(), windowWidth(), windowHeight(), vkInstance(VK_NULL_HANDLE), physicalDevice(VK_NULL_HANDLE),
+          device(VK_NULL_HANDLE), glfwSurface(VK_NULL_HANDLE), surfaceFormat(), surface(VK_NULL_HANDLE),
+          queueFamilyIndices{~0u, ~0u, ~0u} // max uint32_t
+        , swapchain(VK_NULL_HANDLE), swapchainImages(), swapchainImageViews() {}
 
 void PathTracerApp::run() {
     initSettings();
@@ -77,9 +71,9 @@ void PathTracerApp::initGLFW() {
 
 void PathTracerApp::initVulkan() {
     uint32_t glfwExtensionsCount = 0;
-    const char** glfwExtensions = glfwGetRequiredInstanceExtensions(&glfwExtensionsCount);
+    const char **glfwExtensions = glfwGetRequiredInstanceExtensions(&glfwExtensionsCount);
 
-    std::vector<const char*> instanceExtensions;
+    std::vector<const char *> instanceExtensions;
     for (uint32_t i = 0; i < glfwExtensionsCount; i++)
         instanceExtensions.emplace_back(glfwExtensions[i]);
     instanceExtensions.emplace_back(VK_KHR_GET_PHYSICAL_DEVICE_PROPERTIES_2_EXTENSION_NAME);
@@ -113,7 +107,7 @@ void PathTracerApp::initDevicesAndQueues() {
                                VK_KHR_GET_MEMORY_REQUIREMENTS_2_EXTENSION_NAME};
 
     // make sure GPU supports necessary extensions
-    for (auto &ex : requiredExtensions) {
+    for (auto &ex: requiredExtensions) {
         if (!vk::utils::contains(extensionProperties, ex)) {
             throw std::runtime_error(std::string("GPU does not support ") + ex);
         }
@@ -125,12 +119,14 @@ void PathTracerApp::initDevicesAndQueues() {
     std::vector<vk::QueueFamilyProperties> queueFamilies = physicalDevice.getQueueFamilyProperties();
 
     // stolen from rtxON tutorial
-    // any graphics; compute without graphics; transfer without graphics or compute queue family
-    // ensures queueFlags are in different queueFamilies if possible
-    const vk::QueueFlagBits askingFlags[3] = { vk::QueueFlagBits::eGraphics, vk::QueueFlagBits::eCompute, vk::QueueFlagBits::eTransfer };
+    // any graphics; compute without graphics; transfer without graphics or compute queue family are preferred
+    // this ensures queueFlags are in different queueFamilies if possible
+    const std::array<vk::QueueFlagBits, 3> askingFlags = {vk::QueueFlagBits::eGraphics,
+                                                          vk::QueueFlagBits::eCompute,
+                                                          vk::QueueFlagBits::eTransfer};
     for (size_t i = 0; i < 3; ++i) {
         const vk::QueueFlagBits flag = askingFlags[i];
-        uint32_t& queueIdx = queueFamilyIndices[i];
+        uint32_t & queueIdx = queueFamilyIndices[i];
 
         switch (flag) {
             // select a compute queue family different from the graphics queue family if possible
@@ -143,7 +139,7 @@ void PathTracerApp::initDevicesAndQueues() {
                     }
                 }
                 break;
-            // select a transfer queue family different from the graphics and compute queue families if possible
+                // select a transfer queue family different from the graphics and compute queue families if possible
             case vk::QueueFlagBits::eTransfer:
                 for (uint32_t j = 0; j < queueFamilies.size(); ++j) {
                     if ((queueFamilies[j].queueFlags & vk::QueueFlagBits::eTransfer) &&
@@ -195,13 +191,64 @@ void PathTracerApp::initSurface() {
     check_vk_result(err);
     surface = vk::raii::SurfaceKHR(vkInstance, glfwSurface);
 
-    //TODO: setup present queue
     if (!physicalDevice.getSurfaceSupportKHR(queueFamilyIndices[0], *surface))
         throw std::runtime_error("Graphics queue family has no surface support");
-    auto surfaceFormats = physicalDevice.getSurfaceFormatsKHR(*surface);
 
+    auto surfaceFormats = physicalDevice.getSurfaceFormatsKHR(*surface);
+    assert(!surfaceFormats.empty());
+    std::for_each(surfaceFormats.begin(), surfaceFormats.end(), [](vk::SurfaceFormatKHR format) {
+        std::cout << to_string(format.format) << ' ' << to_string(format.colorSpace) << std::endl;
+    });
+
+    // choose surface format
+    // eB8G8R8A8Unorm format in sRGB color space is preferred as it looks fine and is widely supported
+    // fallback to first available surfaceFormat
+    if (auto it = std::find(surfaceFormats.begin(), surfaceFormats.end(),
+            vk::SurfaceFormatKHR(vk::Format::eB8G8R8A8Unorm, vk::ColorSpaceKHR::eSrgbNonlinear)); it !=
+                                                                                                                  surfaceFormats.end()) {
+        surfaceFormat = vk::SurfaceFormatKHR(*it);
+    } else surfaceFormat = vk::SurfaceFormatKHR(surfaceFormats[0]);
 }
 
 void PathTracerApp::initSwapchain() {
-    swapchain = std::move(vk::raii::SwapchainKHR(device, {}));
+    // get surface capabilities
+    auto surfaceCapabilities = physicalDevice.getSurfaceCapabilitiesKHR(*surface);
+
+    // make sure window size is within limits
+    windowWidth = std::clamp(windowWidth, surfaceCapabilities.minImageExtent.width,
+                             surfaceCapabilities.maxImageExtent.width);
+    windowHeight = std::clamp(windowHeight, surfaceCapabilities.minImageExtent.height,
+                              surfaceCapabilities.maxImageExtent.height);
+
+    // since we only care about rendering static images, present mode doesn't matter so FIFO is fine
+    vk::SwapchainCreateInfoKHR swapchainCreateInfo({},
+                                                   *surface,
+                                                   surfaceCapabilities.minImageCount,
+                                                   surfaceFormat.format,
+                                                   surfaceFormat.colorSpace,
+                                                   {windowWidth, windowHeight},
+                                                   1,
+                                                   vk::ImageUsageFlagBits::eColorAttachment |
+                                                   vk::ImageUsageFlagBits::eTransferDst,
+                                                   vk::SharingMode::eConcurrent, // simpler, but less performant
+                                                   0,
+                                                   {},
+                                                   vk::SurfaceTransformFlagBitsKHR::eIdentity,
+                                                   vk::CompositeAlphaFlagBitsKHR::eOpaque,
+                                                   vk::PresentModeKHR::eFifo,
+                                                   VK_TRUE);
+    swapchain = std::move(vk::raii::SwapchainKHR(device, swapchainCreateInfo));
+
+    // get swapchain images and create corresponding image views
+    swapchainImages = swapchain.getImages();
+    //swapchainImageViews.resize(swapchainImages.size());
+    vk::ImageViewCreateInfo imageViewCreateInfo({},
+                                                {},
+                                                vk::ImageViewType::e2D, surfaceFormat.format,
+                                                {},
+                                                {vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1});
+    for (const auto &swapchainImage: swapchainImages) {
+        imageViewCreateInfo.image = swapchainImage;
+        swapchainImageViews.emplace_back(device, imageViewCreateInfo);
+    }
 }
