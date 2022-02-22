@@ -7,10 +7,23 @@
 #include "GLFW/glfw3.h"
 
 PathTracerApp::PathTracerApp()
-        : window(), windowWidth(), windowHeight(), vkInstance(VK_NULL_HANDLE), physicalDevice(VK_NULL_HANDLE),
-          device(VK_NULL_HANDLE), glfwSurface(VK_NULL_HANDLE), surfaceFormat(), surface(VK_NULL_HANDLE),
-          queueFamilyIndices{~0u, ~0u, ~0u} // max uint32_t
-        , swapchain(VK_NULL_HANDLE), swapchainImages(), swapchainImageViews() {}
+        : window(),
+          windowWidth(),
+          windowHeight(),
+          vkInstance(VK_NULL_HANDLE),
+          physicalDevice(VK_NULL_HANDLE),
+          device(VK_NULL_HANDLE),
+          glfwSurface(VK_NULL_HANDLE),
+          surfaceFormat(),
+          surface(VK_NULL_HANDLE),
+          queueFamilyIndices{~0u, ~0u, ~0u},  // max uint32_t
+          swapchain(VK_NULL_HANDLE),
+          swapchainImages(),
+          swapchainImageViews(),
+          waitForFrameFences(),
+          commandPool(VK_NULL_HANDLE),
+          semaphoreImageAvailable(VK_NULL_HANDLE),
+          semaphoreRenderFinished(VK_NULL_HANDLE) {}
 
 void PathTracerApp::run() {
     initSettings();
@@ -19,6 +32,7 @@ void PathTracerApp::run() {
     initDevicesAndQueues();
     initSurface();
     initSwapchain();
+    initSyncObjects();
 
     mainLoop();
 }
@@ -30,6 +44,7 @@ PathTracerApp &PathTracerApp::instance() {
 
 // free glfw and vulkan resources
 PathTracerApp::~PathTracerApp() {
+    device.waitIdle();
     glfwDestroyWindow(window);
     glfwTerminate();
 }
@@ -196,15 +211,12 @@ void PathTracerApp::initSurface() {
 
     auto surfaceFormats = physicalDevice.getSurfaceFormatsKHR(*surface);
     assert(!surfaceFormats.empty());
-    std::for_each(surfaceFormats.begin(), surfaceFormats.end(), [](vk::SurfaceFormatKHR format) {
-        std::cout << to_string(format.format) << ' ' << to_string(format.colorSpace) << std::endl;
-    });
 
     // choose surface format
     // eB8G8R8A8Unorm format in sRGB color space is preferred as it looks fine and is widely supported
     // fallback to first available surfaceFormat
     if (auto it = std::find(surfaceFormats.begin(), surfaceFormats.end(),
-            vk::SurfaceFormatKHR(vk::Format::eB8G8R8A8Unorm, vk::ColorSpaceKHR::eSrgbNonlinear)); it !=
+                            vk::SurfaceFormatKHR(vk::Format::eB8G8R8A8Unorm, vk::ColorSpaceKHR::eSrgbNonlinear)); it !=
                                                                                                                   surfaceFormats.end()) {
         surfaceFormat = vk::SurfaceFormatKHR(*it);
     } else surfaceFormat = vk::SurfaceFormatKHR(surfaceFormats[0]);
@@ -236,12 +248,12 @@ void PathTracerApp::initSwapchain() {
                                                    vk::SurfaceTransformFlagBitsKHR::eIdentity,
                                                    vk::CompositeAlphaFlagBitsKHR::eOpaque,
                                                    vk::PresentModeKHR::eFifo,
-                                                   VK_TRUE);
+                                                   VK_TRUE,
+                                                   VK_NULL_HANDLE); // required for rebuilding swapchain to enable resizing window
     swapchain = std::move(vk::raii::SwapchainKHR(device, swapchainCreateInfo));
 
     // get swapchain images and create corresponding image views
     swapchainImages = swapchain.getImages();
-    //swapchainImageViews.resize(swapchainImages.size());
     vk::ImageViewCreateInfo imageViewCreateInfo({},
                                                 {},
                                                 vk::ImageViewType::e2D, surfaceFormat.format,
@@ -252,3 +264,23 @@ void PathTracerApp::initSwapchain() {
         swapchainImageViews.emplace_back(device, imageViewCreateInfo);
     }
 }
+
+void PathTracerApp::initCommandPoolAndBuffers() {
+    commandPool = device.createCommandPool(
+            vk::CommandPoolCreateInfo(vk::CommandPoolCreateFlagBits::eResetCommandBuffer,  queueFamilyIndices[0]));
+
+    commandBuffers = device.allocateCommandBuffers(vk::CommandBufferAllocateInfo(*commandPool,
+                                                                                 vk::CommandBufferLevel::ePrimary,
+                                                                                 swapchainImages.size()));
+}
+
+void PathTracerApp::initSyncObjects() {
+    for (size_t i = 0; i < swapchainImages.size(); ++i)
+        waitForFrameFences.emplace_back(device, vk::FenceCreateInfo(vk::FenceCreateFlagBits::eSignaled));
+
+    commandPool = device.createCommandPool(vk::CommandPoolCreateInfo());
+
+    semaphoreImageAvailable = device.createSemaphore(vk::SemaphoreCreateInfo());
+    semaphoreRenderFinished = device.createSemaphore(vk::SemaphoreCreateInfo());
+}
+
