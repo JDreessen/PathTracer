@@ -2,16 +2,14 @@
 Cornell Cube Pathtracer written in Vulkan.
 
 ## Building instructions
-Through CLion IDE or similar.
+Through CLion IDE or similar..
 ### Or
 With CMake:
 
-    * requres cmake 3.16
+    * requires cmake 3.16 or higher
     
     $ git clone https://github.com/JDreessen/PathTracer
-    $ mkdir PathTracer/lib
-    $ git clone https://github.com/glfw/glfw PathTracer/lib/
-    $ git clone https://github.com/glm/glm PathTracer/lib/
+    $ git submodule update --init --recursive
     $ cmake PathTracer/CMakeLists.txt
     $ make PathTracer/
 
@@ -20,3 +18,4 @@ With CMake:
 ## Sources
 - Vulkan Tutorial: https://vulkan-tutorial.com/
 - Vulkan Rytracing Tutorials: https://iorange.github.io/
+- https://www.khronos.org/blog/ray-tracing-in-vulkan

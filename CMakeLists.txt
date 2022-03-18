@@ -10,4 +10,4 @@
 
     add_executable(PathTracer main.cpp PathTracerApp.cpp VulkanUtils.cpp)
 
-    target_link_libraries(PathTracer glfw ${GLFW_LIBRARIES} Vulkan::Vulkan)
+    target_link_libraries(PathTracer glfw ${GLFW_LIBRARIES} glm::glm Vulkan::Vulkan)
