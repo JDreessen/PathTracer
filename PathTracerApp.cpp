@@ -426,11 +426,13 @@ void PathTracerApp::createAS(const vk::AccelerationStructureTypeKHR &type,
                 vk::MemoryPropertyFlagBits::eHostVisible |
                 vk::MemoryPropertyFlagBits::eHostCoherent};
 
-        vk::AccelerationStructureInstanceKHR instance(transform, 0, 0xff, 0,
-                                                      vk::GeometryInstanceFlagBitsKHR::eTriangleCullDisable,
-                                                      scene.bottomLevelAS[0].getAddress());
+        std::vector<vk::AccelerationStructureInstanceKHR> instances;
+        for (const auto& bottomLevelAS : scene.bottomLevelAS)
+            instances.emplace_back(transform, 0, 0xff, 0,
+                                                          vk::GeometryInstanceFlagBitsKHR::eTriangleCullDisable,
+                                                          bottomLevelAS.getAddress());
 
-        _as.instancesBuffer.uploadData(&instance, sizeof(instance));
+        _as.instancesBuffer.uploadData(instances.data(), sizeof(instances[0]) * instances.size());
 
         vk::AccelerationStructureGeometryInstancesDataKHR instancesData(VK_FALSE,
                                                                         _as.instancesBuffer.getAddress());

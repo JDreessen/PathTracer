@@ -9,8 +9,8 @@ layout(location = 0) rayPayloadEXT vec3 ResultColor;
 void main() {
     const vec2 uv = vec2(gl_LaunchIDEXT.xy) / vec2(gl_LaunchSizeEXT.xy - 1);
 
-    const vec3 origin = vec3(uv.x, 1.0f - uv.y, -1.0f);
-    const vec3 direction = vec3(0.0f, 0.0f, 1.0f);
+    const vec3 origin = vec3(0.5f, 0.5f, -1.0f);
+    const vec3 direction = vec3(uv.x-0.5f, 0.5f-uv.y, 1.0f);
 
     const uint rayFlags = gl_RayFlagsNoneEXT;
     const uint cullMask = 0xFF;

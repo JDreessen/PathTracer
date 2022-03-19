@@ -1,5 +1,5 @@
 # Vulkan Pathtracer
-Cornell Cube Pathtracer written in Vulkan.
+Cornell Cube PathTracer written in Vulkan.
 
 ## Building instructions
 Through CLion IDE or similar..
@@ -14,8 +14,9 @@ With CMake:
     $ make PathTracer/
 
 ## Key Bindings
+- ESC: Quit program
 
 ## Sources
 - Vulkan Tutorial: https://vulkan-tutorial.com/
-- Vulkan Rytracing Tutorials: https://iorange.github.io/
+- Vulkan Raytracing Tutorials: https://iorange.github.io/
 - https://www.khronos.org/blog/ray-tracing-in-vulkan

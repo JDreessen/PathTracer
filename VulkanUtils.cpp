@@ -206,8 +206,11 @@ namespace vk::utils {
     }
 
     Shader::Shader(const std::string &fileName, vk::ShaderStageFlagBits stage) : module(VK_NULL_HANDLE), stage(stage) {
+        // open shader binary file
         std::ifstream file(fileName, std::ios::in | std::ios::binary | std::ios::ate);
         assert(file);
+
+        // read 1-Byte ifstream into 4-Byte SPIR-V data vector
         uint32_t * memblock;
         auto size = file.tellg();
         memblock = new uint32_t[size / 4 + (size % 4 == 0 ? 0 : 1)];
@@ -215,7 +218,7 @@ namespace vk::utils {
         file.read(reinterpret_cast<char *>(memblock), size);
         file.close();
 
-        std::vector<uint32_t> shaderCode(memblock, memblock + (size / 4 + (size % 4 == 0 ? 0 : 1)));//hier hakts
+        std::vector<uint32_t> shaderCode(memblock, memblock + (size / 4 + (size % 4 == 0 ? 0 : 1)));
 
         module = context::device->createShaderModule({{}, shaderCode});
     }
