@@ -1,2 +1,6 @@
 /cmake-build-debug/
 /.idea/dictionaries/jedre.xml
+/cmake-build-release/
+/shaders_/
+/models/*
+/lib/tinyobjloader/tiny_obj_loader.h

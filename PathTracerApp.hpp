@@ -11,6 +11,7 @@
 #include "glm/glm.hpp"
 #include <vulkan/vulkan_raii.hpp>
 #include "VulkanUtils.hpp"
+#include "Camera.hpp"
 
 class PathTracerApp {
 public:
@@ -27,7 +28,7 @@ private:
 
     void mainLoop();
     void initSettings();                // Initialize application settings
-    void initGLFW();                    // Create glfw window and declare callbacks
+    void initGLFW();                    // Create glfw window
     void initVulkan();                  // Initialize vulkan instance
     void initDevicesAndQueues();        // Create vulkan devices, queue families and queues
     void initSurface();                 // Create vulkan window using glfw
@@ -37,9 +38,12 @@ private:
     void initCommandPoolAndBuffers();   //
     void fillCommandBuffers();          //
 
-    void fillCommandBuffer(const vk::raii::CommandBuffer& commandBuffer, size_t i);
+    void fillCommandBuffer(const vk::raii::CommandBuffer& commandBuffer);
+
+    void keyCallback(GLFWwindow *callbackWindow, int key, int scancode, int action, int mods);
 
     void drawFrame(float dt);
+    void update(float dt);
 
     void createAS(const vk::AccelerationStructureTypeKHR& type,
                   const vk::AccelerationStructureGeometryKHR& geometry,
@@ -87,6 +91,9 @@ private:
 
     vk::utils::Buffer shaderBindingTable;
 
+    Camera camera;
+    glm::vec3 cameraDelta;
+    vk::utils::Buffer cameraBuffer;
     vk::utils::RTScene scene;
 };
 

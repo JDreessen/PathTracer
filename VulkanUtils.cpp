@@ -154,7 +154,7 @@ namespace vk::utils {
         image.bindMemory(*memory, 0);
     }
 
-    void Image::load(std::string filename) {
+    void Image::load(const std::string& filename) {
         //TODO: implement image loading once necessary
     }
 
