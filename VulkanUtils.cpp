@@ -98,13 +98,16 @@ namespace vk::utils {
         buffer.bindMemory(*memory, 0);
     }
 
+    // map memory region to void pointer
     void *vk::utils::Buffer::map(vk::DeviceSize size, vk::DeviceSize offset) const {
-        size = std::min(this->size, size);
+        size = std::min(this->size, size); // we can't map more than is allocated
         return memory.mapMemory(offset, size);
     }
 
+    // unmap mapped memory region
     void vk::utils::Buffer::unmap() const { memory.unmapMemory(); }
 
+    // copy data to memory region
     void vk::utils::Buffer::uploadData(const void *data, vk::DeviceSize size, vk::DeviceSize offset) const {
         void *mem = this->map(size, offset);
         memcpy(mem, data, size);
@@ -158,6 +161,10 @@ namespace vk::utils {
         //TODO: implement image loading once necessary
     }
 
+    void Image::store(const std::string& filename) {
+        //TODO: implement image exporting in the future
+    }
+
     void Image::createImageView(vk::ImageViewType imageViewType, vk::Format format,
                                 vk::ImageSubresourceRange imageSubresourceRange) {
         imageView = context::device->createImageView(vk::ImageViewCreateInfo({},
@@ -205,6 +212,7 @@ namespace vk::utils {
         return context::device->getAccelerationStructureAddressKHR({*accelerationStructure});
     }
 
+    // Load SPIR-V shader stage binary from file
     Shader::Shader(const std::string &fileName, vk::ShaderStageFlagBits stage) : module(VK_NULL_HANDLE), stage(stage) {
         // open shader binary file
         std::ifstream file(fileName, std::ios::in | std::ios::binary | std::ios::ate);

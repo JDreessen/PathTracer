@@ -8,7 +8,9 @@
 #include <memory>
 #define GLFW_INCLUDE_VULKAN
 #include "GLFW/glfw3.h"
+#define GLM_ENABLE_EXPERIMENTAL
 #include "glm/glm.hpp"
+#include "glm/gtx/hash.hpp"
 #include <vulkan/vulkan_raii.hpp>
 #include "VulkanUtils.hpp"
 #include "Camera.hpp"
@@ -51,7 +53,7 @@ private:
     void createScene();
     void createRaytracingPipeline();
     void createShaderBindingTable();
-    void createDescriptorSet();
+    void createDescriptorSets();
 
     std::string name;
     uint32_t windowWidth{}, windowHeight{};
@@ -81,16 +83,16 @@ private:
     vk::raii::Queue transferQueue;
 
     // RayTracing pipeline stuff
-    vk::PhysicalDeviceRayTracingPipelinePropertiesKHR pipelinePropertiesRT;
-    vk::raii::DescriptorSetLayout descriptorSetLayoutRT;
-    vk::raii::PipelineLayout pipelineLayoutRT;
+    vk::PhysicalDeviceRayTracingPipelinePropertiesKHR pipelineProperties;
+    std::vector<vk::raii::DescriptorSetLayout> descriptorSetLayouts;
+    vk::raii::PipelineLayout pipelineLayout;
     vk::raii::Pipeline pipelineRT;
-    vk::raii::DescriptorPool descriptorPoolRT;
-    vk::raii::DescriptorSet descriptorSetRT;
-
-
+    vk::raii::DescriptorPool descriptorPoolRayGen;
+    vk::raii::DescriptorPool descriptorPoolCHit;
+    std::vector<vk::raii::DescriptorSet> descriptorSets;
     vk::utils::Buffer shaderBindingTable;
 
+    // Scene data
     Camera camera;
     glm::vec3 cameraDelta;
     vk::utils::Buffer cameraBuffer;

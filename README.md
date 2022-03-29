@@ -1,6 +1,8 @@
 # Vulkan Pathtracer
 Cornell Cube PathTracer written in Vulkan.
 
+Note: Models need to be provided yourself for the time being.
+
 ## Building instructions
     * requires cmake 3.16 or higher
     

@@ -28,9 +28,6 @@ namespace vk::utils {
         Buffer();
         Buffer(BufferCreateInfo bufferCreateInfo, MemoryPropertyFlags memoryProperties);
 
-        void* map(vk::DeviceSize size = UINT64_MAX, vk::DeviceSize offset = 0) const;
-        void unmap() const;
-
         void uploadData(const void* data, vk::DeviceSize size, vk::DeviceSize offset = 0) const;
 
         // getters
@@ -39,6 +36,9 @@ namespace vk::utils {
         vk::DeviceAddress getAddress() const;
 
     private:
+        void* map(vk::DeviceSize size = UINT64_MAX, vk::DeviceSize offset = 0) const;
+        void unmap() const;
+
         vk::raii::Buffer buffer;
         vk::raii::DeviceMemory memory;
         vk::DeviceSize size;
@@ -56,6 +56,7 @@ namespace vk::utils {
                           vk::MemoryPropertyFlags memoryProperties);
 
         void load(const std::string& filename);
+        void store(const std::string &filename);
         void createImageView(vk::ImageViewType imageViewType, vk::Format format, vk::ImageSubresourceRange imageSubresourceRange);
         void createSampler(vk::Filter magFilter, vk::Filter minFilter, vk::SamplerMipmapMode mipmapMode, vk::SamplerAddressMode addressMode);
 
@@ -91,6 +92,9 @@ namespace vk::utils {
     struct RTScene {
         std::vector<RTAccelerationStructure> bottomLevelAS;
         RTAccelerationStructure topLevelAS;
+
+        std::vector<vk::utils::Buffer> vertexBuffers;
+        std::vector<vk::utils::Buffer> indexBuffers;
     };
 
     void Initialize(vk::raii::PhysicalDevice* physicalDevice,
