@@ -1,5 +1,5 @@
 //
-// Created by jedre on 19.02.2022.
+// Created by JDreessen on 19.02.2022.
 //
 
 #include "VulkanUtils.hpp"
@@ -136,8 +136,8 @@ namespace vk::utils {
                                               imageType,
                                               this->format,
                                               extent,
-                                              2,
-                                              2,
+                                              1,
+                                              1,
                                               vk::SampleCountFlagBits::e1,
                                               tiling,
                                               usage,
@@ -157,11 +157,11 @@ namespace vk::utils {
         image.bindMemory(*memory, 0);
     }
 
-    void Image::load(const std::string& filename) {
-        //TODO: implement image loading once necessary
+    void Image::load(const std::string &filename) {
+        //TODO: implement image loading in the future
     }
 
-    void Image::store(const std::string& filename) {
+    void Image::store(const std::string &filename) {
         //TODO: implement image exporting in the future
     }
 
@@ -219,7 +219,7 @@ namespace vk::utils {
         assert(file);
 
         // read 1-Byte ifstream into 4-Byte SPIR-V data vector
-        uint32_t * memblock;
+        uint32_t *memblock;
         auto size = file.tellg();
         memblock = new uint32_t[size / 4 + (size % 4 == 0 ? 0 : 1)];
         file.seekg(0, std::ios::beg);
@@ -229,6 +229,7 @@ namespace vk::utils {
         std::vector<uint32_t> shaderCode(memblock, memblock + (size / 4 + (size % 4 == 0 ? 0 : 1)));
 
         module = context::device->createShaderModule({{}, shaderCode});
+        delete[](memblock);
     }
 
     vk::PipelineShaderStageCreateInfo Shader::getShaderStage() {

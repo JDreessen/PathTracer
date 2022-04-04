@@ -1,5 +1,5 @@
 //
-// Created by jedre on 19.02.2022.
+// Created by JDreessen on 19.02.2022.
 //
 
 #ifndef PATHTRACER_VULKANUTILS_HPP
@@ -95,6 +95,7 @@ namespace vk::utils {
 
         std::vector<vk::utils::Buffer> vertexBuffers;
         std::vector<vk::utils::Buffer> indexBuffers;
+        std::vector<vk::utils::Buffer> materialBuffers;
     };
 
     void Initialize(vk::raii::PhysicalDevice* physicalDevice,

@@ -1,8 +1,12 @@
 #version 460
 #extension GL_EXT_ray_tracing : require
+#extension GL_GOOGLE_include_directive : require
 
-layout(location = 0) rayPayloadInEXT bool Miss;
+#include "../shaderStructs.hpp"
+
+rayPayloadInEXT Payload payloadIn;
 
 void main() {
-    Miss = true;
+    payloadIn.color = vec3(0);
+    payloadIn.miss = true;
 }
