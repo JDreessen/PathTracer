@@ -71,8 +71,8 @@ void PathTracerApp::mainLoop() {
 
 void PathTracerApp::initSettings() {
     name = "PathTracer";
-    windowWidth = 1280;
-    windowHeight = 720;
+    windowWidth = 1920;
+    windowHeight = 1080;
 }
 
 void PathTracerApp::initGLFW() {
@@ -309,21 +309,6 @@ void PathTracerApp::initSyncObjects() {
 }
 
 void PathTracerApp::initImages() {
-    previousImage = vk::utils::Image(vk::ImageType::e2D,
-                                     surfaceFormat.format,
-                                     {windowWidth, windowHeight, 1},
-                                     vk::ImageTiling::eOptimal,
-                                     vk::ImageUsageFlagBits::eStorage | vk::ImageUsageFlagBits::eTransferDst,
-                                     vk::MemoryPropertyFlagBits::eDeviceLocal);
-
-    previousImage.createImageView(vk::ImageViewType::e2D,
-                                  surfaceFormat.format,
-                                  {vk::ImageAspectFlagBits::eColor,
-                                   0,
-                                   1,
-                                   0,
-                                   1});
-
     resultImage = vk::utils::Image(vk::ImageType::e2D,
                                    surfaceFormat.format,
                                    {windowWidth, windowHeight, 1},
@@ -354,14 +339,6 @@ void PathTracerApp::fillCommandBuffers() {
     for (size_t i = 0; i < commandBuffers.size(); ++i) {
         const vk::raii::CommandBuffer &commandBuffer = commandBuffers[i];
         commandBuffer.begin({});
-
-        vk::utils::imageBarrier(commandBuffer,
-                                *previousImage.getImage(),
-                                {vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1},
-                                {},
-                                vk::AccessFlagBits::eShaderWrite,
-                                vk::ImageLayout::eUndefined,
-                                vk::ImageLayout::eGeneral);
 
         vk::utils::imageBarrier(commandBuffer,
                                 *resultImage.getImage(),
@@ -408,26 +385,6 @@ void PathTracerApp::fillCommandBuffers() {
                                 vk::ImageLayout::eTransferDstOptimal,
                                 vk::ImageLayout::ePresentSrcKHR);
 
-        vk::utils::imageBarrier(commandBuffer,
-                                *previousImage.getImage(),
-                                {vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1},
-                                vk::AccessFlagBits::eShaderWrite,
-                                vk::AccessFlagBits::eTransferRead,
-                                vk::ImageLayout::eGeneral,
-                                vk::ImageLayout::eTransferDstOptimal);
-
-        vk::ImageCopy copyRegion2({vk::ImageAspectFlagBits::eColor, 0, 0, 1},
-                                 {0, 0, 0},
-                                 {vk::ImageAspectFlagBits::eColor, 0, 0, 1},
-                                 {0, 0, 0},
-                                 {windowWidth, windowHeight, 1});
-
-        commandBuffer.copyImage(*resultImage.getImage(),
-                                vk::ImageLayout::eTransferSrcOptimal,
-                                *previousImage.getImage(),
-                                vk::ImageLayout::eTransferDstOptimal,
-                                copyRegion2);
-
         commandBuffer.end();
     }
 }
@@ -471,7 +428,7 @@ void PathTracerApp::createAS(const vk::AccelerationStructureTypeKHR &type,
                              const vk::AccelerationStructureGeometryKHR &_geometry,
                              vk::utils::RTAccelerationStructure &_as) {
     vk::AccelerationStructureGeometryKHR geometry;
-    std::size_t geometryCount;
+    std::size_t geometryCount = 0;
 
     if (type == vk::AccelerationStructureTypeKHR::eBottomLevel) {
         geometry = _geometry;
@@ -552,7 +509,7 @@ void PathTracerApp::createAS(const vk::AccelerationStructureTypeKHR &type,
 
 // load scene data from obj file into acceleration structure
 void PathTracerApp::createScene() {
-    frameData.cameraPos = {0, 7, 26, 1};
+    frameData.cameraPos = {0, 8.2, 20, 1};
     frameData.cameraDir = {0, 0, -1, 1};
     frameDataBuffer = {{{}, sizeof(frameData), vk::BufferUsageFlagBits::eUniformBuffer},
                        vk::MemoryPropertyFlagBits::eHostVisible};
@@ -598,9 +555,9 @@ void PathTracerApp::createScene() {
         for (const auto &index: shape.mesh.material_ids) {
             Material material{};
             if (materials[index].name == "Light") // Lights have custom material
-                material.lightOrDiffusivity = {1.f, 0.f, 0.f, 0.f};
-            else // regular material with diffusivity and color
-                material.lightOrDiffusivity = {0.f, 0.f, materials[index].shininess, 0.f};
+                material.lightOrShininess = {1.f, 0.f, 0.f, 0.f};
+            else // regular material with shininess and color
+                material.lightOrShininess = {0.f, 0.f, materials[index].shininess, 0.f};
             material.rgba = {materials[index].diffuse[0],
                              materials[index].diffuse[1],
                              materials[index].diffuse[2],
@@ -663,8 +620,7 @@ void PathTracerApp::createRaytracingPipeline() {
                                                                   vk::ShaderStageFlagBits::eRaygenKHR |
                                                                   vk::ShaderStageFlagBits::eClosestHitKHR},
             {1, vk::DescriptorType::eStorageImage,             1, vk::ShaderStageFlagBits::eRaygenKHR},
-            {2, vk::DescriptorType::eStorageImage,             1, vk::ShaderStageFlagBits::eRaygenKHR},
-            {3, vk::DescriptorType::eUniformBuffer,            1, vk::ShaderStageFlagBits::eRaygenKHR}
+            {2, vk::DescriptorType::eUniformBuffer,            1, vk::ShaderStageFlagBits::eRaygenKHR}
     };
     std::vector<vk::DescriptorSetLayoutBinding> bindingVertexBuffer{
             {0, vk::DescriptorType::eStorageBuffer, static_cast<uint32_t>(scene.vertexBuffers.size()),
@@ -687,9 +643,9 @@ void PathTracerApp::createRaytracingPipeline() {
 
     pipelineLayout = device.createPipelineLayout({{}, layouts});
 
-    vk::utils::Shader rayGenShader("../shaders_/rayGen.bin", vk::ShaderStageFlagBits::eRaygenKHR);
-    vk::utils::Shader rayMissShader("../shaders_/rayMiss.bin", vk::ShaderStageFlagBits::eMissKHR);
-    vk::utils::Shader rayChitShader("../shaders_/rayChit.bin", vk::ShaderStageFlagBits::eClosestHitKHR);
+    vk::utils::Shader rayGenShader("../shaderBin/rayGen.bin", vk::ShaderStageFlagBits::eRaygenKHR);
+    vk::utils::Shader rayMissShader("../shaderBin/rayMiss.bin", vk::ShaderStageFlagBits::eMissKHR);
+    vk::utils::Shader rayChitShader("../shaderBin/rayChit.bin", vk::ShaderStageFlagBits::eClosestHitKHR);
 
     std::vector<vk::PipelineShaderStageCreateInfo> shaderStages{
             rayGenShader.getShaderStage(),
@@ -707,7 +663,7 @@ void PathTracerApp::createRaytracingPipeline() {
                                                     {{}, shaderStages, shaderGroups, 20, {}, {}, {}, *pipelineLayout});
 }
 
-// create the shade binding table structure containing the shader groups and their respective shaders
+// create the shader binding table structure containing the shader groups and their respective shaders
 void PathTracerApp::createShaderBindingTable() {
     uint32_t sbtChunkSize =
             (pipelineProperties.shaderGroupHandleSize + (pipelineProperties.shaderGroupBaseAlignment - 1)) &
@@ -738,7 +694,7 @@ void PathTracerApp::createDescriptorSets() {
     // Not sure if two pools are necessary
     std::vector<vk::DescriptorPoolSize> poolSizesRayGen{
             {vk::DescriptorType::eAccelerationStructureKHR, 1},
-            {vk::DescriptorType::eStorageImage,             2},
+            {vk::DescriptorType::eStorageImage,             1},
             {vk::DescriptorType::eUniformBuffer,            1}
     };
     std::vector<vk::DescriptorPoolSize> poolSizesCHit{
@@ -765,22 +721,16 @@ void PathTracerApp::createDescriptorSets() {
                                                       vk::DescriptorType::eAccelerationStructureKHR);
     accelerationStructureWrite.pNext = &descriptorAccelerationStructure;
 
-    // set 0, binding 1: previous image
-    vk::DescriptorImageInfo descriptorInputImageInfo(VK_NULL_HANDLE, *previousImage.getImageView(),
-                                                     vk::ImageLayout::eGeneral);
-    vk::WriteDescriptorSet previousImageWrite(*descriptorSets[0], 1, 0, 1, vk::DescriptorType::eStorageImage,
-                                              &descriptorInputImageInfo);
-
-    // set 0, binding 2: result image
+    // set 0, binding 1: result image
     vk::DescriptorImageInfo descriptorOutputImageInfo(VK_NULL_HANDLE, *resultImage.getImageView(),
                                                       vk::ImageLayout::eGeneral);
-    vk::WriteDescriptorSet resultImageWrite(*descriptorSets[0], 2, 0, 1, vk::DescriptorType::eStorageImage,
+    vk::WriteDescriptorSet resultImageWrite(*descriptorSets[0], 1, 0, 1, vk::DescriptorType::eStorageImage,
                                             &descriptorOutputImageInfo);
 
     // set 0, binding 2: instance data buffer
-    vk::DescriptorBufferInfo descriptorInstanceDataBufferInfo(*frameDataBuffer.getBuffer(), 0, frameDataBuffer.getSize());
-    vk::WriteDescriptorSet instanceDataWrite(*descriptorSets[0], 3, 0, vk::DescriptorType::eUniformBuffer, {},
-                                       descriptorInstanceDataBufferInfo);
+    vk::DescriptorBufferInfo descriptorFrameDataBufferInfo(*frameDataBuffer.getBuffer(), 0, frameDataBuffer.getSize());
+    vk::WriteDescriptorSet frameDataWrite(*descriptorSets[0], 2, 0, vk::DescriptorType::eUniformBuffer, {},
+                                       descriptorFrameDataBufferInfo);
 
     // set 1, binding 0: vertex buffers for each instance (shape)
     std::vector<vk::DescriptorBufferInfo> descriptorVertexBufferInfos{};
@@ -803,8 +753,8 @@ void PathTracerApp::createDescriptorSets() {
     vk::WriteDescriptorSet materialWrite(*descriptorSets[3], 0, 0, vk::DescriptorType::eStorageBuffer, {},
                                          descriptorMaterialBufferInfos);
 
-    std::vector<vk::WriteDescriptorSet> descriptorWrites{accelerationStructureWrite, previousImageWrite,
-                                                         resultImageWrite, instanceDataWrite,
+    std::vector<vk::WriteDescriptorSet> descriptorWrites{accelerationStructureWrite,
+                                                         resultImageWrite, frameDataWrite,
                                                          vertexWrite, indexWrite, materialWrite};
 
     device.updateDescriptorSets(descriptorWrites, VK_NULL_HANDLE);
@@ -844,6 +794,10 @@ void PathTracerApp::update(const float dt) {
     // add camera movement adjusted for frame duration
     frameData.cameraPos += dt * glm::vec4(movementSpeed * cameraDelta, 0);
     frameDataBuffer.uploadData(&frameData, sizeof(frameData));
+
+    //TODO: reset image on camera movement
+    if (cameraDelta != glm::vec3(0))
+        frameData.frameID.x = 0;
 }
 
 void PathTracerApp::keyCallback(GLFWwindow *callbackWindow, int key, int scancode, int action, int mods) {

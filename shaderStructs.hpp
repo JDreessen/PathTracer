@@ -6,18 +6,22 @@
 
 using namespace glm;
 
-#endif // __cplusplus
-
-struct Material {
-    vec4 lightOrDiffusivity;
-    vec4 rgba;
-};
+#else
+#include "random.glsl"
 
 struct Payload {
+    vec3 dir;
     vec3 color;
     uint depth;
     bool miss;
-    uvec2 rng;
+    RNG rng;
+};
+
+#endif // __cplusplus
+
+struct Material {
+    vec4 lightOrShininess;
+    vec4 rgba;
 };
 
 struct FrameData {

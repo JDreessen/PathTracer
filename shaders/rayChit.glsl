@@ -50,21 +50,20 @@ void main() {
     const vec3 v2 = Vertices[gl_InstanceID].vertices[hitIndices.y].xyz;
     const vec3 v3 = Vertices[gl_InstanceID].vertices[hitIndices.z].xyz;
 
+    const vec3 surfaceNormal = normal(v1, v2, v3);
+
     const vec3 barycentrics = vec3(1.0f - HitAttribs.x - HitAttribs.y, HitAttribs.x, HitAttribs.y);
 
-    const uint maxDepth = 20;
-    if (Materials[gl_InstanceID].materials[gl_PrimitiveID].lightOrDiffusivity.x == 1.0) {
+    const uint maxDepth = 15; // whats my max recursion depth??
+    if (Materials[gl_InstanceID].materials[gl_PrimitiveID].lightOrShininess.x == 1.0) {
         payloadIn.color = Materials[gl_InstanceID].materials[gl_PrimitiveID].rgba.xyz;
-    } else if (payloadIn.depth < maxDepth) {
-        const vec3 origin = barycentricToCartesian(v1, v2, v3, barycentrics);
-        const vec3 direction = randomVecInHemisphere(RNG(payloadIn.rng), normal(v1, v2, v3));
-
+    } else if (payloadIn.depth < maxDepth && dot(payloadIn.dir, surfaceNormal) < 0) {
         const uint rayFlags = gl_RayFlagsNoneEXT;
         const uint cullMask = 0xFF;
         const uint sbtRecordOffset = 0;
         const uint sbtRecordStride = 0;
         const uint missIndex = 0;
-        const float tmin = 0.0f;
+        const float tmin = 0.001f;
         const float tmax = 1000.0f;
         const int payloadLocation = 0;
 
@@ -72,24 +71,52 @@ void main() {
         payload.depth = payloadIn.depth + 1;
         payload.rng = payloadIn.rng;
 
-        traceRayEXT(Scene,
-        rayFlags,
-        cullMask,
-        sbtRecordOffset,
-        sbtRecordStride,
-        missIndex,
-        origin,
-        tmin,
-        direction,
-        tmax,
-        payloadLocation);
+        const vec3 origin = barycentricToCartesian(v1, v2, v3, barycentrics);
 
-        if (payload.miss) {
-            payloadIn.miss = true;
-        } else {
-            payloadIn.color = payload.color;
+        if (Materials[gl_InstanceID].materials[gl_PrimitiveID].lightOrShininess.z == 1.0) { // Mirror
+            const vec3 direction = payloadIn.dir - 2 * dot(payloadIn.dir, surfaceNormal) * surfaceNormal;
+
+            traceRayEXT(Scene,
+            rayFlags,
+            cullMask,
+            sbtRecordOffset,
+            sbtRecordStride,
+            missIndex,
+            origin,
+            tmin,
+            direction,
+            tmax,
+            payloadLocation);
+
+            if (payload.miss)
+                payloadIn.miss = true;
+            else
+                payloadIn.color = payload.color;
+        } else { // Lambertian Reflectance (Diffuse)
+            const vec3 direction = randomVecInHemisphere(payloadIn.rng, surfaceNormal);
+
+            const float p = 1 / (2 * PI);
+            const vec3 emmitance = Materials[gl_InstanceID].materials[gl_PrimitiveID].rgba.xyz;
+            const float cos_theta = dot(direction, surfaceNormal);
+            const vec3 BDRF = vec3(0.7 / PI);
+
+            traceRayEXT(Scene,
+            rayFlags,
+            cullMask,
+            sbtRecordOffset,
+            sbtRecordStride,
+            missIndex,
+            origin,
+            tmin,
+            direction,
+            tmax,
+            payloadLocation);
+
+            if (payload.miss)
+                payloadIn.miss = true;
+            else
+                payloadIn.color = emmitance + (BDRF * payload.color * cos_theta / p);
         }
-    } else {
+    } else
         payloadIn.miss = true;
-    }
 }

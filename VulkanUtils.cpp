@@ -216,7 +216,8 @@ namespace vk::utils {
     Shader::Shader(const std::string &fileName, vk::ShaderStageFlagBits stage) : module(VK_NULL_HANDLE), stage(stage) {
         // open shader binary file
         std::ifstream file(fileName, std::ios::in | std::ios::binary | std::ios::ate);
-        assert(file);
+        if (!file)
+            throw std::runtime_error("Could not open shader binary " + fileName);
 
         // read 1-Byte ifstream into 4-Byte SPIR-V data vector
         uint32_t *memblock;

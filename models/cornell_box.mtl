@@ -1,0 +1,18 @@
+newmtl 01___Default
+Kd 1 1 1
+Ns 0
+newmtl default
+Kd 1 1 1
+Ns 0
+newmtl Light
+Kd 1 1 1
+Ns 0
+newmtl 01___Red
+Kd 1 0 0
+Ns 0
+newmtl 01___Green
+Kd 0 1 0
+Ns 0
+newmtl Mirror
+Kd 1 1 1
+Ns 1

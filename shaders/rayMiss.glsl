@@ -8,5 +8,5 @@ rayPayloadInEXT Payload payloadIn;
 
 void main() {
     payloadIn.color = vec3(0);
-    payloadIn.miss = true;
+    payloadIn.miss = true; // disabling this fakes brightness
 }

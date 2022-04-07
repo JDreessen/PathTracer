@@ -24,15 +24,13 @@ uint rng_next(inout RNG rng) {
     return result;
 }
 
-// Thomas Wang 32-bit hash.
-// http://www.reedbeta.com/blog/quick-and-easy-gpu-random-numbers-in-d3d11/
-uint rng_hash(uint seed) {
-    seed = (seed ^ 61) ^ (seed >> 16);
-    seed *= 9;
-    seed = seed ^ (seed >> 4);
-    seed *= 0x27d4eb2d;
-    seed = seed ^ (seed >> 15);
-    return seed;
+// PCG hash function as described in
+// https://www.reedbeta.com/blog/hash-functions-for-gpu-rendering/
+uint rng_hash(uint seed)
+{
+uint state = seed * 747796405u + 2891336453u;
+uint word = ((state >> ((state >> 28u) + 4u)) ^ state) * 277803737u;
+return (word >> 22u) ^ word;
 }
 
 RNG rng_init(uvec2 id, uint frameIndex) {
@@ -46,14 +44,19 @@ RNG rng_init(uvec2 id, uint frameIndex) {
     return rng;
 }
 
+float next_float(inout RNG rng)
+{
+    uint u = 0x3f800000 | (rng_next(rng) >> 9);
+    return uintBitsToFloat(u) - 1.0;
+}
+
 // find random vector in hemisphere of normal vector for lambertian reflectance
 vec3 randomVecInHemisphere(RNG rng, vec3 normal) {
-    float theta = rng_next(rng) * 2.0 * PI;
-    float u = rng_next(rng) * 2.0 - 1;
+    float theta = next_float(rng) * 2.0 * PI;
+    float u = next_float(rng) * 2.0 - 1;
 
     float val = sqrt(1 - u * u);
     vec3 w = normalize(vec3(val * cos(theta), val * sin(theta), u));
-
     return dot(normal, w) > 0 ? w : -w;
 }
     #endif

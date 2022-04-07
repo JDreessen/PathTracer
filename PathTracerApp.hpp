@@ -86,7 +86,6 @@ private:
     std::vector<vk::raii::ImageView> swapchainImageViews;
     std::vector<uint32_t> queueFamilyIndices;
     std::vector<vk::raii::Fence> waitForFrameFences;
-    vk::utils::Image previousImage;
     vk::utils::Image resultImage;
     vk::raii::CommandPool commandPool;
     std::vector<vk::raii::CommandBuffer> commandBuffers;
