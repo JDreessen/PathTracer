@@ -1,6 +1,7 @@
 # Vulkan PathTracer
 Cornell Cube PathTracer written in Vulkan.
 
+![](screenshots/cornell_box-6246.png)
 ## Building
 ### Prerequisites
 - [Vulkan SDK](https://www.khronos.org/vulkan/download/)
@@ -14,9 +15,9 @@ Cornell Cube PathTracer written in Vulkan.
     curl https://raw.githubusercontent.com/tinyobjloader/tinyobjloader/master/tiny_obj_loader.h -o lib/tinyobjloader/tiny_obj_loader.h
     cmake -G Ninja -S . -B release -DCMAKE_BUILD_TYPE=Release
     ninja -C release
-    compileShaders.sh
+    ./compileShaders.sh
 ### Windows
-Downlaod and extract the latest [glslang release](https://github.com/KhronosGroup/glslang/releases/download/master-tot/glslang-master-linux-Release.zip) for Windows into `lib\glslang`
+Download and extract the latest [glslang release](https://github.com/KhronosGroup/glslang/releases/download/master-tot/glslang-master-linux-Release.zip) for Windows into `lib\glslang` before compiling shaders.
 
     git clone https://github.com/JDreessen/PathTracer
     dir PathTracer
@@ -24,11 +25,12 @@ Downlaod and extract the latest [glslang release](https://github.com/KhronosGrou
     curl https://raw.githubusercontent.com/tinyobjloader/tinyobjloader/master/tiny_obj_loader.h -o lib/tinyobjloader/tiny_obj_loader.h
     cmake -G Ninja -S . -B release -DCMAKE_BUILD_TYPE=Release
     ninja -C release
-    compileShaders.bat
+    .\compileShaders.bat
 Note: Shaders have to be recompiled after modifying the shader files.
 ## Key Bindings
 - `ESC`: Quit program
 - `WASDQE`: Camera Movement
+- `P`: Take screenshot
 
 ## Resources
 - Vulkan Tutorial: https://vulkan-tutorial.com/
