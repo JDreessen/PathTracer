@@ -4,7 +4,7 @@ Cornell Cube PathTracer written in Vulkan.
 ![](screenshots/cornell_box-6246.png)
 ## Building
 ### Prerequisites
-- [Vulkan SDK](https://www.khronos.org/vulkan/download/)
+- [Vulkan SDK](https://vulkan.lunarg.com/sdk/home)
 - [Git](https://git-scm.com/)
 - [CMake 3.16+](https://cmake.org/)
 - [Ninja](https://ninja-build.org/)
