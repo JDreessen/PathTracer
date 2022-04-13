@@ -1,18 +1,47 @@
-newmtl 01___Default
-Kd 1 1 1
+newmtl floor
+Ka  0.5 0.5 0.5
+Kd  0.4 0.4 0.4
 Ns 0
-newmtl default
-Kd 1 1 1
+
+newmtl ceiling
+Ka  0.5 0.5 0.5
+Kd  0.4 0.4 0.4
 Ns 0
+
+newmtl back
+Ka  0.5 0.5 0.5
+Kd  0.4 0.4 0.4
+Ns 0
+
+newmtl right
+Ka 0.5 0.1 0.8
+Kd  0.5 0.1 0.8
+Ns 0
+
+newmtl left
+Ka 0.9 0.6 0.1
+Kd  0.9 0.6 0.1
+Ns 0
+
+newmtl short_box
+Ka  0.6 0.6 0.6
+Kd  0.5 0.5 0.5
+Ns 0
+
+newmtl tall_box
+Ka  0.6 0.6 0.6
+Kd  0.5 0.5 0.5
+Ns 0
+
+# these values are only approximations
+# details at: http://www.graphics.cornell.edu/online/box/
+#
+# units are watts/nm^2
 newmtl Light
-Kd 1 1 1
+Kd 18.9914 14.4266 3.8927
+#Kd 1 1 1
 Ns 0
-newmtl 01___Red
-Kd 1 0 0
-Ns 0
-newmtl 01___Green
-Kd 0 1 0
-Ns 0
+
 newmtl Mirror
 Kd 1 1 1
 Ns 1

@@ -39,6 +39,10 @@ hitAttributeEXT vec2 HitAttribs;
 
 layout(location = 0) rayPayloadEXT Payload payload;
 
+layout(push_constant) uniform PushConstant {
+    uint maxDepth;
+} pushConstant;
+
 void main() {
     // get vertices of hit triangle
     const uvec3 hitIndices = uvec3(
@@ -54,10 +58,9 @@ void main() {
 
     const vec3 barycentrics = vec3(1.0f - HitAttribs.x - HitAttribs.y, HitAttribs.x, HitAttribs.y);
 
-    const uint maxDepth = 15; // whats my max recursion depth??
-    if (Materials[gl_InstanceID].materials[gl_PrimitiveID].lightOrShininess.x == 1.0) {
-        payloadIn.color = Materials[gl_InstanceID].materials[gl_PrimitiveID].rgba.xyz;
-    } else if (payloadIn.depth < maxDepth && dot(payloadIn.dir, surfaceNormal) < 0) {
+    if (Materials[gl_InstanceID].materials[gl_PrimitiveID].lightOrShininess.x == 1.0) { // Light
+        payloadIn.color = Materials[gl_InstanceID].materials[gl_PrimitiveID].emmitance.xyz;
+    } else if (payloadIn.depth < pushConstant.maxDepth) {
         const uint rayFlags = gl_RayFlagsNoneEXT;
         const uint cullMask = 0xFF;
         const uint sbtRecordOffset = 0;
@@ -67,9 +70,11 @@ void main() {
         const float tmax = 1000.0f;
         const int payloadLocation = 0;
 
+        payload.color = vec3(0.0f);
         payload.miss = false;
         payload.depth = payloadIn.depth + 1;
         payload.rng = payloadIn.rng;
+        rng_next(payload.rng);
 
         const vec3 origin = barycentricToCartesian(v1, v2, v3, barycentrics);
 
@@ -95,10 +100,10 @@ void main() {
         } else { // Lambertian Reflectance (Diffuse)
             const vec3 direction = randomVecInHemisphere(payloadIn.rng, surfaceNormal);
 
-            const float p = 1 / (2 * PI);
-            const vec3 emmitance = Materials[gl_InstanceID].materials[gl_PrimitiveID].rgba.xyz;
+            const float p = 1 / (2.0 * PI);
+            const vec3 emmitance = Materials[gl_InstanceID].materials[gl_PrimitiveID].emmitance.xyz;
             const float cos_theta = dot(direction, surfaceNormal);
-            const vec3 BDRF = vec3(0.7 / PI);
+            const vec3 BDRF = Materials[gl_InstanceID].materials[gl_PrimitiveID].reflectance.xyz / PI;
 
             traceRayEXT(Scene,
             rayFlags,
@@ -115,7 +120,7 @@ void main() {
             if (payload.miss)
                 payloadIn.miss = true;
             else
-                payloadIn.color = emmitance + (BDRF * payload.color * cos_theta / p);
+                payloadIn.color = emmitance + BDRF * payload.color * cos_theta / p;
         }
     } else
         payloadIn.miss = true;

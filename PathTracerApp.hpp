@@ -68,8 +68,14 @@ private:
 
     void createDescriptorSets();
 
-    std::string name;
-    uint32_t windowWidth{}, windowHeight{};
+    struct Settings {
+        std::string name = "PathTracer";
+        uint32_t windowWidth = 1280;
+        uint32_t windowHeight = 720;
+        std::string modelName{};
+        uint32_t maxRecursionDepth = 10;
+    }; Settings settings{};
+
     GLFWwindow *window;
 
     vk::raii::Context context;
@@ -87,8 +93,10 @@ private:
     std::vector<uint32_t> queueFamilyIndices;
     std::vector<vk::raii::Fence> waitForFrameFences;
     vk::utils::Image resultImage;
-    vk::raii::CommandPool commandPool;
+    vk::raii::CommandPool graphicsPool;
+    vk::raii::CommandPool computePool;
     std::vector<vk::raii::CommandBuffer> commandBuffers;
+    vk::raii::CommandBuffer computeCommandBuffer;
     vk::raii::Semaphore semaphoreImageAvailable;
     vk::raii::Semaphore semaphoreRenderFinished;
     vk::raii::Queue graphicsQueue;
@@ -110,6 +118,8 @@ private:
     vk::utils::Buffer frameDataBuffer;
     glm::vec3 cameraDelta;
     vk::utils::RTScene scene;
+
+    void exportImage();
 };
 
 #endif //PATHTRACER_PATHTRACERAPP_HPP

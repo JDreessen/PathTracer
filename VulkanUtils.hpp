@@ -55,8 +55,6 @@ namespace vk::utils {
                           vk::ImageUsageFlags usage,
                           vk::MemoryPropertyFlags memoryProperties);
 
-        void load(const std::string& filename);
-        void store(const std::string &filename);
         void createImageView(vk::ImageViewType imageViewType, vk::Format format, vk::ImageSubresourceRange imageSubresourceRange);
         void createSampler(vk::Filter magFilter, vk::Filter minFilter, vk::SamplerMipmapMode mipmapMode, vk::SamplerAddressMode addressMode);
 

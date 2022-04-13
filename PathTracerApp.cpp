@@ -10,11 +10,11 @@
 #include "lib/tinyobjloader/tiny_obj_loader.h"
 
 PathTracerApp::PathTracerApp()
-        : window(), windowWidth(), windowHeight(), vkInstance(VK_NULL_HANDLE), physicalDevice(VK_NULL_HANDLE),
+        : window(), settings(), vkInstance(VK_NULL_HANDLE), physicalDevice(VK_NULL_HANDLE),
           device(VK_NULL_HANDLE), glfwSurface(VK_NULL_HANDLE), surfaceFormat(), surface(VK_NULL_HANDLE),
           queueFamilyIndices{~0u, ~0u, ~0u}  // max uint32_t
         , swapchain(VK_NULL_HANDLE), swapchainImages(), swapchainImageViews(), waitForFrameFences(),
-          commandPool(VK_NULL_HANDLE), semaphoreImageAvailable(VK_NULL_HANDLE), semaphoreRenderFinished(VK_NULL_HANDLE),
+          graphicsPool(VK_NULL_HANDLE), computePool(VK_NULL_HANDLE), computeCommandBuffer(VK_NULL_HANDLE), semaphoreImageAvailable(VK_NULL_HANDLE), semaphoreRenderFinished(VK_NULL_HANDLE),
           graphicsQueue(VK_NULL_HANDLE), computeQueue(VK_NULL_HANDLE), transferQueue(VK_NULL_HANDLE),
           descriptorSetLayouts{}, pipelineLayout(VK_NULL_HANDLE), pipelineRT(VK_NULL_HANDLE),
           descriptorPoolRayGen(VK_NULL_HANDLE), descriptorPoolCHit(VK_NULL_HANDLE), descriptorSets{},
@@ -29,7 +29,7 @@ void PathTracerApp::run() {
     initSurface();
     initSwapchain();
     initSyncObjects();
-    vk::utils::Initialize(&physicalDevice, &device, &commandPool, &transferQueue);
+    vk::utils::Initialize(&physicalDevice, &device, &graphicsPool, &transferQueue);
     initImages();
     initCommandPoolAndBuffers();
 
@@ -57,7 +57,7 @@ PathTracerApp::~PathTracerApp() {
 
 void PathTracerApp::mainLoop() {
     glfwSetTime(0);
-    double currentTime, previousTime = 0, deltaTime = 0;
+    double currentTime, previousTime = 0, deltaTime;
     while (!glfwWindowShouldClose(window)) {
         currentTime = glfwGetTime();
         deltaTime = currentTime - previousTime;
@@ -70,9 +70,11 @@ void PathTracerApp::mainLoop() {
 }
 
 void PathTracerApp::initSettings() {
-    name = "PathTracer";
-    windowWidth = 1920;
-    windowHeight = 1080;
+    settings.name = "PathTracer";
+    settings.windowWidth = 1280;
+    settings.windowHeight = 720;
+    settings.modelName = "cornell_box";
+    settings.maxRecursionDepth = 8;
 }
 
 void PathTracerApp::initGLFW() {
@@ -81,9 +83,9 @@ void PathTracerApp::initGLFW() {
     glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
     glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
 
-    window = glfwCreateWindow(static_cast<int>(windowWidth),
-                              static_cast<int>(windowHeight),
-                              "Vulkan window",
+    window = glfwCreateWindow(static_cast<int>(settings.windowWidth),
+                              static_cast<int>(settings.windowHeight),
+                              settings.name.c_str(),
                               nullptr,
                               nullptr);
 
@@ -107,7 +109,7 @@ void PathTracerApp::initVulkan() {
     instanceLayers.push_back("VK_LAYER_KHRONOS_validation");
 #endif
 
-    vk::ApplicationInfo applicationInfo = vk::ApplicationInfo(name.c_str(),
+    vk::ApplicationInfo applicationInfo = vk::ApplicationInfo(settings.name.c_str(),
                                                               VK_MAKE_VERSION(1, 0, 0),
                                                               "Vulkan",
                                                               VK_MAKE_VERSION(1, 0, 0),
@@ -122,7 +124,6 @@ void PathTracerApp::initVulkan() {
 
 void PathTracerApp::initDevicesAndQueues() {
     // grab first available GPU
-    //TODO: test all available GPUs for extension support
     physicalDevice = std::move(vk::raii::PhysicalDevices(vkInstance).front());
 
     // grab available extensions of GPU
@@ -230,6 +231,8 @@ void PathTracerApp::initDevicesAndQueues() {
             vk::PhysicalDeviceRayTracingPipelinePropertiesKHR>();
 
     pipelineProperties = props.get<vk::PhysicalDeviceRayTracingPipelinePropertiesKHR>();
+    settings.maxRecursionDepth = std::min(pipelineProperties.maxRayRecursionDepth, settings.maxRecursionDepth);
+    std::cout << "Max ray recursion depth: " << settings.maxRecursionDepth << std::endl;
 }
 
 void PathTracerApp::initSurface() {
@@ -261,10 +264,10 @@ void PathTracerApp::initSwapchain() {
     auto surfaceCapabilities = physicalDevice.getSurfaceCapabilitiesKHR(*surface);
 
     // make sure window size is within limits
-    windowWidth = std::clamp(windowWidth, surfaceCapabilities.minImageExtent.width,
-                             surfaceCapabilities.maxImageExtent.width);
-    windowHeight = std::clamp(windowHeight, surfaceCapabilities.minImageExtent.height,
-                              surfaceCapabilities.maxImageExtent.height);
+    settings.windowWidth = std::clamp(settings.windowWidth, surfaceCapabilities.minImageExtent.width,
+                                      surfaceCapabilities.maxImageExtent.width);
+    settings.windowHeight = std::clamp(settings.windowHeight, surfaceCapabilities.minImageExtent.height,
+                                       surfaceCapabilities.maxImageExtent.height);
 
     // since we only care about rendering static images, present mode doesn't matter so FIFO is fine
     vk::SwapchainCreateInfoKHR swapchainCreateInfo({},
@@ -272,7 +275,7 @@ void PathTracerApp::initSwapchain() {
                                                    surfaceCapabilities.minImageCount,
                                                    surfaceFormat.format,
                                                    surfaceFormat.colorSpace,
-                                                   {windowWidth, windowHeight},
+                                                   {settings.windowWidth, settings.windowHeight},
                                                    1,
                                                    vk::ImageUsageFlagBits::eColorAttachment |
                                                    vk::ImageUsageFlagBits::eTransferDst,
@@ -299,10 +302,10 @@ void PathTracerApp::initSwapchain() {
 }
 
 void PathTracerApp::initSyncObjects() {
-    for (const auto& e : swapchainImages)
+    for (const auto &e: swapchainImages)
         waitForFrameFences.emplace_back(device, vk::FenceCreateInfo(vk::FenceCreateFlagBits::eSignaled));
 
-    commandPool = device.createCommandPool(vk::CommandPoolCreateInfo());
+    graphicsPool = device.createCommandPool(vk::CommandPoolCreateInfo());
 
     semaphoreImageAvailable = device.createSemaphore(vk::SemaphoreCreateInfo());
     semaphoreRenderFinished = device.createSemaphore(vk::SemaphoreCreateInfo());
@@ -311,7 +314,7 @@ void PathTracerApp::initSyncObjects() {
 void PathTracerApp::initImages() {
     resultImage = vk::utils::Image(vk::ImageType::e2D,
                                    surfaceFormat.format,
-                                   {windowWidth, windowHeight, 1},
+                                   {settings.windowWidth, settings.windowHeight, 1},
                                    vk::ImageTiling::eOptimal,
                                    vk::ImageUsageFlagBits::eStorage | vk::ImageUsageFlagBits::eTransferSrc,
                                    vk::MemoryPropertyFlagBits::eDeviceLocal);
@@ -326,19 +329,28 @@ void PathTracerApp::initImages() {
 }
 
 void PathTracerApp::initCommandPoolAndBuffers() {
-    commandPool = device.createCommandPool(
+    graphicsPool = device.createCommandPool(
             vk::CommandPoolCreateInfo(vk::CommandPoolCreateFlagBits::eResetCommandBuffer,
                                       queueFamilyIndices[vk::utils::QueueFamilyIndex::graphics]));
+    computePool = device.createCommandPool(
+            vk::CommandPoolCreateInfo(vk::CommandPoolCreateFlagBits::eResetCommandBuffer,
+                                      queueFamilyIndices[vk::utils::QueueFamilyIndex::compute]));
 
-    commandBuffers = device.allocateCommandBuffers({*commandPool,
+    commandBuffers = device.allocateCommandBuffers({*graphicsPool,
                                                     vk::CommandBufferLevel::ePrimary,
-                                                    static_cast<uint32_t>(swapchainImages.size())});
+                                                    static_cast<uint32_t>(swapchainImages.size()) + 1});
+    computeCommandBuffer = std::move(device.allocateCommandBuffers({*computePool,
+                                                   vk::CommandBufferLevel::ePrimary,
+                                                   1}).front());
 }
 
 void PathTracerApp::fillCommandBuffers() {
-    for (size_t i = 0; i < commandBuffers.size(); ++i) {
+    for (size_t i = 0; i < commandBuffers.size() - 1; ++i) {
         const vk::raii::CommandBuffer &commandBuffer = commandBuffers[i];
         commandBuffer.begin({});
+
+        commandBuffer.pushConstants<uint32_t>(*pipelineLayout, vk::ShaderStageFlagBits::eClosestHitKHR, 0,
+                                              {settings.maxRecursionDepth});
 
         vk::utils::imageBarrier(commandBuffer,
                                 *resultImage.getImage(),
@@ -370,7 +382,7 @@ void PathTracerApp::fillCommandBuffers() {
                                  {0, 0, 0},
                                  {vk::ImageAspectFlagBits::eColor, 0, 0, 1},
                                  {0, 0, 0},
-                                 {windowWidth, windowHeight, 1});
+                                 {settings.windowWidth, settings.windowHeight, 1});
 
         commandBuffer.copyImage(*resultImage.getImage(),
                                 vk::ImageLayout::eTransferSrcOptimal,
@@ -387,6 +399,7 @@ void PathTracerApp::fillCommandBuffers() {
 
         commandBuffer.end();
     }
+
 }
 
 void PathTracerApp::fillCommandBuffer(const vk::raii::CommandBuffer &commandBuffer) {
@@ -419,7 +432,7 @@ void PathTracerApp::fillCommandBuffer(const vk::raii::CommandBuffer &commandBuff
                                strideAddresses[1],
                                strideAddresses[2],
                                strideAddresses[3],
-                               windowWidth, windowHeight, 1);
+                               settings.windowWidth, settings.windowHeight, 1);
 }
 
 // create either a bottom level acceleration structure containing geometries or
@@ -509,13 +522,13 @@ void PathTracerApp::createAS(const vk::AccelerationStructureTypeKHR &type,
 
 // load scene data from obj file into acceleration structure
 void PathTracerApp::createScene() {
-    frameData.cameraPos = {0, 8.2, 20, 1};
-    frameData.cameraDir = {0, 0, -1, 1};
+    frameData.cameraPos = {275, 275, -300, 1};
+    frameData.cameraDir = {-1, -1, 1, 1};
     frameDataBuffer = {{{}, sizeof(frameData), vk::BufferUsageFlagBits::eUniformBuffer},
                        vk::MemoryPropertyFlagBits::eHostVisible};
     frameDataBuffer.uploadData(&frameData, sizeof(frameData));
 
-    std::string fileName = "../models/cornell_box.obj";
+    std::string fileName = "../models/" + settings.modelName + ".obj";
     tinyobj::ObjReaderConfig readerConfig;
     tinyobj::ObjReader reader;
 
@@ -556,12 +569,16 @@ void PathTracerApp::createScene() {
             Material material{};
             if (materials[index].name == "Light") // Lights have custom material
                 material.lightOrShininess = {1.f, 0.f, 0.f, 0.f};
-            else // regular material with shininess and color
+            else // regular material with shininess, emmitance and reflectance
                 material.lightOrShininess = {0.f, 0.f, materials[index].shininess, 0.f};
-            material.rgba = {materials[index].diffuse[0],
-                             materials[index].diffuse[1],
-                             materials[index].diffuse[2],
-                             1.f};
+            material.reflectance = {materials[index].ambient[0],
+                                  materials[index].ambient[1],
+                                  materials[index].ambient[2],
+                                  0.f};
+            material.emmitance = {materials[index].diffuse[0],
+                                    materials[index].diffuse[1],
+                                    materials[index].diffuse[2],
+                                    0.f};
             newMaterials.push_back(material);
         }
         scene.vertexBuffers.emplace_back(
@@ -641,7 +658,9 @@ void PathTracerApp::createRaytracingPipeline() {
     std::for_each(descriptorSetLayouts.begin(), descriptorSetLayouts.end(),
                   [&layouts](const auto &e) { layouts.push_back(*e); });
 
-    pipelineLayout = device.createPipelineLayout({{}, layouts});
+    vk::PushConstantRange pushConstantRange(vk::ShaderStageFlagBits::eClosestHitKHR, 0, sizeof(uint32_t));
+
+    pipelineLayout = device.createPipelineLayout({{}, layouts, pushConstantRange});
 
     vk::utils::Shader rayGenShader("../shaderBin/rayGen.bin", vk::ShaderStageFlagBits::eRaygenKHR);
     vk::utils::Shader rayMissShader("../shaderBin/rayMiss.bin", vk::ShaderStageFlagBits::eMissKHR);
@@ -660,7 +679,7 @@ void PathTracerApp::createRaytracingPipeline() {
     };
 
     pipelineRT = device.createRayTracingPipelineKHR(VK_NULL_HANDLE, VK_NULL_HANDLE,
-                                                    {{}, shaderStages, shaderGroups, 20, {}, {}, {}, *pipelineLayout});
+                                                    {{}, shaderStages, shaderGroups, settings.maxRecursionDepth, {}, {}, {}, *pipelineLayout});
 }
 
 // create the shader binding table structure containing the shader groups and their respective shaders
@@ -730,7 +749,7 @@ void PathTracerApp::createDescriptorSets() {
     // set 0, binding 2: instance data buffer
     vk::DescriptorBufferInfo descriptorFrameDataBufferInfo(*frameDataBuffer.getBuffer(), 0, frameDataBuffer.getSize());
     vk::WriteDescriptorSet frameDataWrite(*descriptorSets[0], 2, 0, vk::DescriptorType::eUniformBuffer, {},
-                                       descriptorFrameDataBufferInfo);
+                                          descriptorFrameDataBufferInfo);
 
     // set 1, binding 0: vertex buffers for each instance (shape)
     std::vector<vk::DescriptorBufferInfo> descriptorVertexBufferInfos{};
@@ -790,14 +809,15 @@ void PathTracerApp::drawFrame(const float dt) {
 }
 
 void PathTracerApp::update(const float dt) {
-    const float movementSpeed = 20.0f;
+    const float movementSpeed = 300;
     // add camera movement adjusted for frame duration
-    frameData.cameraPos += dt * glm::vec4(movementSpeed * cameraDelta, 0);
-    frameDataBuffer.uploadData(&frameData, sizeof(frameData));
+    frameData.cameraPos += dt * glm::vec4(movementSpeed * cameraDelta, 0) * frameData.cameraDir;
 
-    //TODO: reset image on camera movement
+    // reset image on camera movement
     if (cameraDelta != glm::vec3(0))
         frameData.frameID.x = 0;
+
+    frameDataBuffer.uploadData(&frameData, sizeof(frameData));
 }
 
 void PathTracerApp::keyCallback(GLFWwindow *callbackWindow, int key, int scancode, int action, int mods) {
@@ -805,13 +825,74 @@ void PathTracerApp::keyCallback(GLFWwindow *callbackWindow, int key, int scancod
         if (key == GLFW_KEY_ESCAPE) glfwSetWindowShouldClose(callbackWindow, 1);
         else if (key == GLFW_KEY_A) cameraDelta.x = -0.1;
         else if (key == GLFW_KEY_D) cameraDelta.x = 0.1;
-        else if (key == GLFW_KEY_W) cameraDelta.y = 0.1;
-        else if (key == GLFW_KEY_S) cameraDelta.y = -0.1;
+        else if (key == GLFW_KEY_W) cameraDelta.y = -0.1;
+        else if (key == GLFW_KEY_S) cameraDelta.y = 0.1;
         else if (key == GLFW_KEY_Q) cameraDelta.z = -0.1;
         else if (key == GLFW_KEY_E) cameraDelta.z = 0.1;
     } else if (action == GLFW_RELEASE) {
         if (key == GLFW_KEY_A || key == GLFW_KEY_D) cameraDelta.x = 0;
         else if (key == GLFW_KEY_W || key == GLFW_KEY_S) cameraDelta.y = 0;
         else if (key == GLFW_KEY_Q || key == GLFW_KEY_E) cameraDelta.z = 0;
+        else if (key == GLFW_KEY_P) exportImage();
     }
+}
+
+void PathTracerApp::exportImage() {
+    std::ofstream file(
+            std::string("../screenshots/") + settings.modelName + '-' + std::to_string(frameData.frameID.x) + ".ppm",
+            std::ios::binary);
+    if (!file) {
+        std::cerr << "Could not open file for writing" << std::endl;
+        return;
+    }
+
+    vk::utils::Image screenshot(vk::ImageType::e2D, vk::Format::eR8G8B8A8Unorm,
+                                {settings.windowWidth, settings.windowHeight, 1}, vk::ImageTiling::eLinear,
+                                vk::ImageUsageFlagBits::eTransferDst,
+                                vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent);
+
+    computeCommandBuffer.begin({vk::CommandBufferUsageFlagBits::eOneTimeSubmit});
+
+    vk::utils::imageBarrier(computeCommandBuffer,
+                            *resultImage.getImage(),
+                            {vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1},
+                            {},
+                            vk::AccessFlagBits::eShaderWrite,
+                            vk::ImageLayout::eUndefined,
+                            vk::ImageLayout::eTransferSrcOptimal);
+
+    vk::utils::imageBarrier(computeCommandBuffer,
+                            *screenshot.getImage(),
+                            {vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1},
+                            {},
+                            vk::AccessFlagBits::eShaderWrite,
+                            vk::ImageLayout::eUndefined,
+                            vk::ImageLayout::eTransferDstOptimal);
+
+    vk::ImageCopy copyRegion({vk::ImageAspectFlagBits::eColor, 0, 0, 1},
+                             {0, 0, 0},
+                             {vk::ImageAspectFlagBits::eColor, 0, 0, 1},
+                             {0, 0, 0},
+                             {settings.windowWidth, settings.windowHeight, 1});
+
+    computeCommandBuffer.copyImage(*resultImage.getImage(),
+                            vk::ImageLayout::eTransferSrcOptimal,
+                            *screenshot.getImage(),
+                            vk::ImageLayout::eTransferDstOptimal, copyRegion);
+    computeCommandBuffer.end();
+
+    computeQueue.submit(vk::SubmitInfo(VK_NULL_HANDLE, VK_NULL_HANDLE, *computeCommandBuffer, VK_NULL_HANDLE));
+    computeQueue.waitIdle();
+
+    const void *data = screenshot.getDeviceMemory().mapMemory(0, VK_WHOLE_SIZE);
+    file << "P6\n" << settings.windowWidth << " " << settings.windowHeight << "\n255\n";
+
+    for (int i = 0; i < settings.windowWidth * settings.windowHeight * 4; i += 4) {
+        file << static_cast<const uint8_t *>(data)[i + 2];
+        file << static_cast<const uint8_t *>(data)[i + 1];
+        file << static_cast<const uint8_t *>(data)[i + 0];
+    }
+    //file.write(reinterpret_cast<const char *>(data), windowWidth * windowHeight * 3);
+
+    screenshot.getDeviceMemory().unmapMemory();
 }

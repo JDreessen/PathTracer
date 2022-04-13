@@ -157,14 +157,6 @@ namespace vk::utils {
         image.bindMemory(*memory, 0);
     }
 
-    void Image::load(const std::string &filename) {
-        //TODO: implement image loading in the future
-    }
-
-    void Image::store(const std::string &filename) {
-        //TODO: implement image exporting in the future
-    }
-
     void Image::createImageView(vk::ImageViewType imageViewType, vk::Format format,
                                 vk::ImageSubresourceRange imageSubresourceRange) {
         imageView = context::device->createImageView(vk::ImageViewCreateInfo({},

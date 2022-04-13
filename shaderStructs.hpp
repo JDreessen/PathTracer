@@ -21,7 +21,8 @@ struct Payload {
 
 struct Material {
     vec4 lightOrShininess;
-    vec4 rgba;
+    vec4 emmitance;
+    vec4 reflectance;
 };
 
 struct FrameData {

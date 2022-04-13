@@ -1,5 +1,7 @@
 /cmake-build-debug/
 /.idea/dictionaries/jedre.xml
 /cmake-build-release/
-/shaderBin/
+/shaderBin/*.bin
+/screenshots/*.ppm
 /lib/tinyobjloader/tiny_obj_loader.h
+/lib/glslang/

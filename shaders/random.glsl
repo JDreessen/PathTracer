@@ -26,8 +26,7 @@ uint rng_next(inout RNG rng) {
 
 // PCG hash function as described in
 // https://www.reedbeta.com/blog/hash-functions-for-gpu-rendering/
-uint rng_hash(uint seed)
-{
+uint rng_hash(uint seed) {
 uint state = seed * 747796405u + 2891336453u;
 uint word = ((state >> ((state >> 28u) + 4u)) ^ state) * 277803737u;
 return (word >> 22u) ^ word;
@@ -44,8 +43,7 @@ RNG rng_init(uvec2 id, uint frameIndex) {
     return rng;
 }
 
-float next_float(inout RNG rng)
-{
+float next_float(inout RNG rng) {
     uint u = 0x3f800000 | (rng_next(rng) >> 9);
     return uintBitsToFloat(u) - 1.0;
 }
