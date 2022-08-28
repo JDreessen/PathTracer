@@ -29,15 +29,16 @@ void main() {
     const float tmax = 1000.0f;
     const int payloadLocation = 0;
 
-    const vec2 jitter = vec2(next_float(payload.rng) - 0.5, next_float(payload.rng) - 0.5);
+    const vec2 jitter = 0.5 * (randomGaussian(payload.rng) + 1);
     const vec2 target = (gl_LaunchIDEXT.xy + jitter) / gl_LaunchSizeEXT.xy * 2.0 - 1.0;
     const vec3 origin = cameraPos.xyz;
-    const vec3 direction = (vec3(target.x * aspect, target.y, 1) * cameraDir.xyz);
+    //const vec4 direction = vec4(0.0871543, -0.9961948, 0, 0) * vec4(vec3(target.x * aspect, target.y, 1) * cameraDir.xyz, 1) * vec4(0.0871543, 0.9961948, 0, 0);
+    const vec4 direction = vec4(vec3(target.x * aspect, target.y, 1) * cameraDir.xyz, 1);
 
     payload.color = vec3(0.0f);
     payload.miss = false;
     payload.depth = 0;
-    payload.dir = direction;
+    payload.dir = direction.xyz;
 
     traceRayEXT(Scene,
     rayFlags,
@@ -47,19 +48,20 @@ void main() {
     missIndex,
     origin,
     tmin,
-    direction,
+    direction.xyz,
     tmax,
     payloadLocation);
 
     if (frameID.x == 0) {
-        vec3 resultColor = pow(payload.color, vec3(1.0 / 2.2)); // convert to sRGB
+        vec3 resultColor = pow(payload.color, vec3(1.0 / 2.2)); // convert to linear
         imageStore(ResultImage, ivec2(gl_LaunchIDEXT.xy), vec4(resultColor, 1));
     } else { // calculate running average
         vec3 previousColor = imageLoad(ResultImage, ivec2(gl_LaunchIDEXT.xy)).xyz;
         previousColor = pow(previousColor, vec3(2.2)); // perform calculation in sRGB
 
-        vec3 resultColor = ((frameID.x * previousColor + payload.color) / float(frameID.x+1));
+        vec3 resultColor = ((float(frameID.x) * previousColor + payload.color) / float(frameID.x+1));
         resultColor = pow(resultColor, vec3(1.0 / 2.2)); // convert to linear
+        //resultColor += (normalize(vec3(next_float(payload.rng), next_float(payload.rng), next_float(payload.rng)))-0.5)/255.0; // apply dithering
 
         imageStore(ResultImage, ivec2(gl_LaunchIDEXT.xy), vec4(resultColor, 1));
     }

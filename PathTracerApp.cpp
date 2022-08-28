@@ -14,7 +14,8 @@ PathTracerApp::PathTracerApp()
           device(VK_NULL_HANDLE), glfwSurface(VK_NULL_HANDLE), surfaceFormat(), surface(VK_NULL_HANDLE),
           queueFamilyIndices{~0u, ~0u, ~0u}  // max uint32_t
         , swapchain(VK_NULL_HANDLE), swapchainImages(), swapchainImageViews(), waitForFrameFences(),
-          graphicsPool(VK_NULL_HANDLE), computePool(VK_NULL_HANDLE), computeCommandBuffer(VK_NULL_HANDLE), semaphoreImageAvailable(VK_NULL_HANDLE), semaphoreRenderFinished(VK_NULL_HANDLE),
+          graphicsPool(VK_NULL_HANDLE), computePool(VK_NULL_HANDLE), computeCommandBuffer(VK_NULL_HANDLE),
+          semaphoreImageAvailable(VK_NULL_HANDLE), semaphoreRenderFinished(VK_NULL_HANDLE),
           graphicsQueue(VK_NULL_HANDLE), computeQueue(VK_NULL_HANDLE), transferQueue(VK_NULL_HANDLE),
           descriptorSetLayouts{}, pipelineLayout(VK_NULL_HANDLE), pipelineRT(VK_NULL_HANDLE),
           descriptorPoolRayGen(VK_NULL_HANDLE), descriptorPoolCHit(VK_NULL_HANDLE), descriptorSets{},
@@ -69,12 +70,16 @@ void PathTracerApp::mainLoop() {
     }
 }
 
+//void PathTracerApp::initSettings(std::string appName = "PathTracer", uint32_t width = 800, uint32_t height = 600, std::string modelName = "cornell_box", uint32_t maxRecursionDepth = 31) {
 void PathTracerApp::initSettings() {
     settings.name = "PathTracer";
     settings.windowWidth = 1280;
     settings.windowHeight = 720;
     settings.modelName = "cornell_box";
-    settings.maxRecursionDepth = 8;
+    settings.maxRecursionDepth = 31;
+
+    frameData.cameraPos = {275, 275, 1, 1};
+    frameData.cameraDir = {-1, -1, 1, 1};
 }
 
 void PathTracerApp::initGLFW() {
@@ -88,7 +93,6 @@ void PathTracerApp::initGLFW() {
                               settings.name.c_str(),
                               nullptr,
                               nullptr);
-
     glfwSetKeyCallback(window, [](GLFWwindow *callbackWindow, int key, int scancode, int action, int mods) {
         PathTracerApp::instance().keyCallback(callbackWindow, key, scancode, action, mods);
     });
@@ -340,8 +344,8 @@ void PathTracerApp::initCommandPoolAndBuffers() {
                                                     vk::CommandBufferLevel::ePrimary,
                                                     static_cast<uint32_t>(swapchainImages.size()) + 1});
     computeCommandBuffer = std::move(device.allocateCommandBuffers({*computePool,
-                                                   vk::CommandBufferLevel::ePrimary,
-                                                   1}).front());
+                                                                    vk::CommandBufferLevel::ePrimary,
+                                                                    1}).front());
 }
 
 void PathTracerApp::fillCommandBuffers() {
@@ -522,8 +526,6 @@ void PathTracerApp::createAS(const vk::AccelerationStructureTypeKHR &type,
 
 // load scene data from obj file into acceleration structure
 void PathTracerApp::createScene() {
-    frameData.cameraPos = {275, 275, -300, 1};
-    frameData.cameraDir = {-1, -1, 1, 1};
     frameDataBuffer = {{{}, sizeof(frameData), vk::BufferUsageFlagBits::eUniformBuffer},
                        vk::MemoryPropertyFlagBits::eHostVisible};
     frameDataBuffer.uploadData(&frameData, sizeof(frameData));
@@ -571,11 +573,11 @@ void PathTracerApp::createScene() {
                 material.lightOrShininess = {1.f, 0.f, 0.f, 0.f};
             else // regular material with shininess, emmitance and reflectance
                 material.lightOrShininess = {0.f, 0.f, materials[index].shininess, 0.f};
-            material.reflectance = {materials[index].ambient[0],
+            material.emmitance = {materials[index].ambient[0],
                                   materials[index].ambient[1],
                                   materials[index].ambient[2],
                                   0.f};
-            material.emmitance = {materials[index].diffuse[0],
+            material.reflectance = {materials[index].diffuse[0],
                                     materials[index].diffuse[1],
                                     materials[index].diffuse[2],
                                     0.f};
@@ -679,7 +681,8 @@ void PathTracerApp::createRaytracingPipeline() {
     };
 
     pipelineRT = device.createRayTracingPipelineKHR(VK_NULL_HANDLE, VK_NULL_HANDLE,
-                                                    {{}, shaderStages, shaderGroups, settings.maxRecursionDepth, {}, {}, {}, *pipelineLayout});
+                                                    {{}, shaderStages, shaderGroups, settings.maxRecursionDepth, {}, {},
+                                                     {}, *pipelineLayout});
 }
 
 // create the shader binding table structure containing the shader groups and their respective shaders
@@ -805,7 +808,7 @@ void PathTracerApp::drawFrame(const float dt) {
                                                         imageIndex,
                                                         {}));
     check_vk_result(error);
-    ++frameData.frameID.x;
+    glfwSetWindowTitle(window,std::to_string(frameData.frameID.x++).c_str());
 }
 
 void PathTracerApp::update(const float dt) {
@@ -876,9 +879,9 @@ void PathTracerApp::exportImage() {
                              {settings.windowWidth, settings.windowHeight, 1});
 
     computeCommandBuffer.copyImage(*resultImage.getImage(),
-                            vk::ImageLayout::eTransferSrcOptimal,
-                            *screenshot.getImage(),
-                            vk::ImageLayout::eTransferDstOptimal, copyRegion);
+                                   vk::ImageLayout::eTransferSrcOptimal,
+                                   *screenshot.getImage(),
+                                   vk::ImageLayout::eTransferDstOptimal, copyRegion);
     computeCommandBuffer.end();
 
     computeQueue.submit(vk::SubmitInfo(VK_NULL_HANDLE, VK_NULL_HANDLE, *computeCommandBuffer, VK_NULL_HANDLE));

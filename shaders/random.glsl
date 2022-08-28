@@ -44,8 +44,7 @@ RNG rng_init(uvec2 id, uint frameIndex) {
 }
 
 float next_float(inout RNG rng) {
-    uint u = 0x3f800000 | (rng_next(rng) >> 9);
-    return uintBitsToFloat(u) - 1.0;
+    return float(rng_next(rng)) / 0xFFFFFFFFu;
 }
 
 // find random vector in hemisphere of normal vector for lambertian reflectance
@@ -56,5 +55,15 @@ vec3 randomVecInHemisphere(RNG rng, vec3 normal) {
     float val = sqrt(1 - u * u);
     vec3 w = normalize(vec3(val * cos(theta), val * sin(theta), u));
     return dot(normal, w) > 0 ? w : -w;
+}
+
+// Uses the Box-Muller transform to return a normally distributed (centered
+// at 0, standard deviation 1) 2D point.
+vec2 randomGaussian(inout RNG rng) {
+    float u1 = max(1e-38, next_float(rng));
+    float u2 = next_float(rng);
+    float r = sqrt(-2.0 * log(u1));
+    float theta = 2.0 * PI * u2;
+    return r * vec2(cos(theta), sin(theta));
 }
     #endif

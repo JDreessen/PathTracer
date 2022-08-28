@@ -80,6 +80,7 @@ void main() {
 
         if (Materials[gl_InstanceID].materials[gl_PrimitiveID].lightOrShininess.z == 1.0) { // Mirror
             const vec3 direction = payloadIn.dir - 2 * dot(payloadIn.dir, surfaceNormal) * surfaceNormal;
+            payload.dir = direction;
 
             traceRayEXT(Scene,
             rayFlags,
@@ -96,9 +97,10 @@ void main() {
             if (payload.miss)
                 payloadIn.miss = true;
             else
-                payloadIn.color = payload.color;
+                payloadIn.color = Materials[gl_InstanceID].materials[gl_PrimitiveID].reflectance.xyz * payload.color;
         } else { // Lambertian Reflectance (Diffuse)
             const vec3 direction = randomVecInHemisphere(payloadIn.rng, surfaceNormal);
+            payload.dir = direction;
 
             const float p = 1 / (2.0 * PI);
             const vec3 emmitance = Materials[gl_InstanceID].materials[gl_PrimitiveID].emmitance.xyz;
