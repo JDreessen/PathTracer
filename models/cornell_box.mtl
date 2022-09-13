@@ -1,35 +1,28 @@
 newmtl floor
-Ks  0.5 0.5 0.5
 Kd  0.4 0.4 0.4
 Ns 0
 
 newmtl ceiling
-Ks  0.5 0.5 0.5
 Kd  0.4 0.4 0.4
 Ns 0
 
 newmtl back
-Ks  0.5 0.5 0.5
 Kd  0.4 0.4 0.4
 Ns 0
 
 newmtl right
-Ks 0.5 0.1 0.8
 Kd  0.5 0.1 0.8
 Ns 0
 
 newmtl left
-Ks 0.9 0.6 0.1
 Kd  0.9 0.6 0.1
 Ns 0
 
 newmtl short_box
-Ks  0.6 0.6 0.6
 Kd  0.5 0.5 0.5
 Ns 0
 
 newmtl tall_box
-Ks  0.6 0.6 0.6
 Kd  0.5 0.5 0.5
 Ns 0
 
@@ -38,7 +31,7 @@ Ns 0
 #
 # units are watts/nm^2
 newmtl Light
-Ka 1.89914 1.44266 0.38927
+Ka 18.9914 14.4266 3.8927
 #Kd 1 1 1
 Ns 0
 
