@@ -76,7 +76,7 @@ void PathTracerApp::initSettings() {
     settings.windowWidth = 1280;
     settings.windowHeight = 720;
     settings.modelName = "cornell_box";
-    settings.maxRecursionDepth = 31;
+    settings.maxRecursionDepth = 16;
 
     frameData.cameraPos = {275, 275, 1, 1};
     frameData.cameraDir = {-1, -1, 1, 1};
@@ -569,18 +569,14 @@ void PathTracerApp::createScene() {
         }
         for (const auto &index: shape.mesh.material_ids) {
             Material material{};
-            if (materials[index].name == "Light") // Lights have custom material
-                material.lightOrShininess = {1.f, 0.f, 0.f, 0.f};
-            else // regular material with shininess, emmitance and reflectance
-                material.lightOrShininess = {0.f, 0.f, materials[index].shininess, 0.f};
-            material.emmitance = {materials[index].ambient[0],
+            material.emittance = {materials[index].ambient[0],
                                   materials[index].ambient[1],
                                   materials[index].ambient[2],
                                   0.f};
             material.reflectance = {materials[index].diffuse[0],
                                     materials[index].diffuse[1],
                                     materials[index].diffuse[2],
-                                    0.f};
+                                    materials[index].shininess};
             newMaterials.push_back(material);
         }
         scene.vertexBuffers.emplace_back(

@@ -58,9 +58,7 @@ void main() {
 
     const vec3 barycentrics = vec3(1.0f - HitAttribs.x - HitAttribs.y, HitAttribs.x, HitAttribs.y);
 
-    if (Materials[gl_InstanceID].materials[gl_PrimitiveID].lightOrShininess.x == 1.0) { // Light
-        payloadIn.color = Materials[gl_InstanceID].materials[gl_PrimitiveID].emmitance.xyz;
-    } else if (payloadIn.depth < pushConstant.maxDepth) {
+    if (payloadIn.depth < pushConstant.maxDepth) {
         const uint rayFlags = gl_RayFlagsNoneEXT;
         const uint cullMask = 0xFF;
         const uint sbtRecordOffset = 0;
@@ -71,14 +69,13 @@ void main() {
         const int payloadLocation = 0;
 
         payload.color = vec3(0.0f);
-        payload.miss = false;
         payload.depth = payloadIn.depth + 1;
         payload.rng = payloadIn.rng;
         rng_next(payload.rng);
 
         const vec3 origin = barycentricToCartesian(v1, v2, v3, barycentrics);
 
-        if (Materials[gl_InstanceID].materials[gl_PrimitiveID].lightOrShininess.z == 1.0) { // Mirror
+        if (Materials[gl_InstanceID].materials[gl_PrimitiveID].reflectance.w == 1.0) { // Mirror
             const vec3 direction = payloadIn.dir - 2 * dot(payloadIn.dir, surfaceNormal) * surfaceNormal;
             payload.dir = direction;
 
@@ -94,16 +91,13 @@ void main() {
             tmax,
             payloadLocation);
 
-            if (payload.miss)
-                payloadIn.miss = true;
-            else
-                payloadIn.color = Materials[gl_InstanceID].materials[gl_PrimitiveID].reflectance.xyz * payload.color;
+            payloadIn.color = Materials[gl_InstanceID].materials[gl_PrimitiveID].reflectance.xyz * payload.color;
         } else { // Lambertian Reflectance (Diffuse)
-            const vec3 direction = randomVecInHemisphere(payloadIn.rng, surfaceNormal);
+            const vec3 direction = randomVecInHemisphere(payload.rng, surfaceNormal);
             payload.dir = direction;
 
             const float p = 1 / (2.0 * PI);
-            const vec3 emmitance = Materials[gl_InstanceID].materials[gl_PrimitiveID].emmitance.xyz;
+            const vec3 emittance = Materials[gl_InstanceID].materials[gl_PrimitiveID].emittance.xyz;
             const float cos_theta = dot(direction, surfaceNormal);
             const vec3 BDRF = Materials[gl_InstanceID].materials[gl_PrimitiveID].reflectance.xyz / PI;
 
@@ -119,11 +113,7 @@ void main() {
             tmax,
             payloadLocation);
 
-            if (payload.miss)
-                payloadIn.miss = true;
-            else
-                payloadIn.color = emmitance + BDRF * payload.color * cos_theta / p;
+            payloadIn.color = emittance + BDRF * payload.color * cos_theta / p;
         }
-    } else
-        payloadIn.miss = true;
+    }
 }

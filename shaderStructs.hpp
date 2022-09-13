@@ -13,16 +13,14 @@ struct Payload {
     vec3 dir;
     vec3 color;
     uint depth;
-    bool miss;
     RNG rng;
 };
 
 #endif // __cplusplus
 
 struct Material {
-    vec4 lightOrShininess;
-    vec4 emmitance;
-    vec4 reflectance;
+    vec4 emittance;
+    vec4 reflectance; // xyz: color, w: shininess
 };
 
 struct FrameData {

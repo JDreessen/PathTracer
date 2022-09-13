@@ -36,7 +36,6 @@ void main() {
     const vec4 direction = vec4(vec3(target.x * aspect, target.y, 1) * cameraDir.xyz, 1);
 
     payload.color = vec3(0.0f);
-    payload.miss = false;
     payload.depth = 0;
     payload.dir = direction.xyz;
 
@@ -61,7 +60,6 @@ void main() {
 
         vec3 resultColor = ((float(frameID.x) * previousColor + payload.color) / float(frameID.x+1));
         resultColor = pow(resultColor, vec3(1.0 / 2.2)); // convert to linear
-        //resultColor += (normalize(vec3(next_float(payload.rng), next_float(payload.rng), next_float(payload.rng)))-0.5)/255.0; // apply dithering
 
         imageStore(ResultImage, ivec2(gl_LaunchIDEXT.xy), vec4(resultColor, 1));
     }
