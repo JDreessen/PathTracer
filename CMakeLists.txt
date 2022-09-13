@@ -9,6 +9,6 @@
     SET(GLM_TEST_ENABLE OFF CACHE BOOL "GLM Build unit tests")
     add_subdirectory(lib/glm    EXCLUDE_FROM_ALL)
 
-    add_executable(PathTracer main.cpp PathTracerApp.cpp VulkanUtils.cpp)
+    add_executable(PathTracer main.cpp PathTracerApp.cpp VulkanUtils.cpp Camera.cpp Camera.hpp)
 
     target_link_libraries(PathTracer glfw ${GLFW_LIBRARIES} glm::glm Vulkan::Vulkan)

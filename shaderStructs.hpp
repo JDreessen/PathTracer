@@ -13,7 +13,6 @@ struct Payload {
     vec3 dir;
     vec3 color;
     uint depth;
-    bool miss;
     RNG rng;
 };
 
@@ -28,5 +27,8 @@ struct Material {
 struct FrameData {
     vec4 cameraPos;
     vec4 cameraDir;
+    vec4 cameraUp;
+    vec4 cameraSide;
+    vec4 cameraNearFarFOV;
     uvec4 frameID;
 };

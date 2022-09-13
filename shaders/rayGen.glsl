@@ -8,13 +8,24 @@
 // Immutable data
 layout(set = 0, binding = 0) uniform accelerationStructureEXT Scene;
 layout(set = 0, binding = 1, rgba8) uniform image2D ResultImage;
-layout(set = 0, binding = 2, std140) uniform frameData {
-    vec4 cameraPos;
-    vec4 cameraDir;
-    uvec4 frameID;
+layout(set = 0, binding = 2, std140) uniform Params {
+    FrameData frameData;
 };
 
 layout(location = 0) rayPayloadEXT Payload payload;
+
+vec3 calcRayDir(vec2 screenUV, float aspect) {
+    vec3 u = frameData.cameraSide.xyz;
+    vec3 v = frameData.cameraUp.xyz;
+
+    const float planeWidth = tan(frameData.cameraNearFarFov.z * 0.5f);
+
+    u *= (planeWidth * aspect);
+    v *= planeWidth;
+
+    const vec3 rayDir = normalize(frameData.cameraDir.xyz + (u * screenUV.x) - (v * screenUV.y));
+    return rayDir;
+}
 
 void main() {
     payload.rng = rng_init(gl_LaunchIDEXT.xy + gl_LaunchSizeEXT.xy, frameID.x);
@@ -25,20 +36,20 @@ void main() {
     const uint sbtRecordOffset = 0;
     const uint sbtRecordStride = 0;
     const uint missIndex = 0;
-    const float tmin = 0.001f;
-    const float tmax = 1000.0f;
+    const float tmin = frameData.cameraNearFarFOV.x;
+    const float tmax = frameData.cameraNearFarFOV.y;
     const int payloadLocation = 0;
 
     const vec2 jitter = 0.5 * (randomGaussian(payload.rng) + 1);
     const vec2 target = (gl_LaunchIDEXT.xy + jitter) / gl_LaunchSizeEXT.xy * 2.0 - 1.0;
     const vec3 origin = cameraPos.xyz;
-    //const vec4 direction = vec4(0.0871543, -0.9961948, 0, 0) * vec4(vec3(target.x * aspect, target.y, 1) * cameraDir.xyz, 1) * vec4(0.0871543, 0.9961948, 0, 0);
-    const vec4 direction = vec4(vec3(target.x * aspect, target.y, 1) * cameraDir.xyz, 1);
+    //const vec3 direction = vec3(target.x * aspect, target.y, 1) * cameraDir.xyz;
+    const vec3 direction = calcRayDir(target, aspect);
 
     payload.color = vec3(0.0f);
     payload.miss = false;
     payload.depth = 0;
-    payload.dir = direction.xyz;
+    payload.dir = direction;
 
     traceRayEXT(Scene,
     rayFlags,

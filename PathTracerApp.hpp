@@ -18,6 +18,7 @@
 #include <vulkan/vulkan_raii.hpp>
 #include "VulkanUtils.hpp"
 #include "shaderStructs.hpp"
+#include "Camera.hpp"
 
 class PathTracerApp {
 public:
@@ -68,13 +69,15 @@ private:
 
     void createDescriptorSets();
 
+    void exportImage();
+
     struct Settings {
-        std::string name = "PathTracer";
-        uint32_t windowWidth = 1280;
-        uint32_t windowHeight = 720;
-        std::string modelName{};
-        uint32_t maxRecursionDepth = 10;
-    }; Settings settings{};
+        std::string name;
+        uint32_t windowWidth;
+        uint32_t windowHeight;
+        std::string modelName;
+        uint32_t maxRecursionDepth;
+    }; Settings settings;
 
     GLFWwindow *window;
 
@@ -116,10 +119,9 @@ private:
     // Scene data
     FrameData frameData; // Camera position and frame index
     vk::utils::Buffer frameDataBuffer;
+    Camera camera;
     glm::vec3 cameraDelta;
     vk::utils::RTScene scene;
-
-    void exportImage();
 };
 
 #endif //PATHTRACER_PATHTRACERAPP_HPP

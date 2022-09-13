@@ -78,8 +78,14 @@ void PathTracerApp::initSettings() {
     settings.modelName = "cornell_box";
     settings.maxRecursionDepth = 31;
 
+    camera = Camera({275, 275, 1}, {0, 0, 1}, {0, 1, 0}, 0.1f, 1000.0f, 90.0f);
+
     frameData.cameraPos = {275, 275, 1, 1};
-    frameData.cameraDir = {-1, -1, 1, 1};
+    frameData.cameraDir = {0, 0, 1, 1};
+    frameData.cameraUp = {0, 0, 1, 1};
+    frameData.cameraSide = {1, 0, 0, 1};
+    frameData.cameraNearFarFOV = {0, 1000, 90, 1};
+    frameData.frameID = {0, 0, 0, 1};
 }
 
 void PathTracerApp::initGLFW() {
@@ -813,7 +819,8 @@ void PathTracerApp::drawFrame(const float dt) {
 
 void PathTracerApp::update(const float dt) {
     const float movementSpeed = 300;
-    // add camera movement adjusted for frame duration
+    // add camera movemen
+    //TODO: remove cameraDir in calculaion
     frameData.cameraPos += dt * glm::vec4(movementSpeed * cameraDelta, 0) * frameData.cameraDir;
 
     // reset image on camera movement
