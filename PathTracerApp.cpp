@@ -810,13 +810,16 @@ void PathTracerApp::drawFrame(const float dt) {
                                                         imageIndex,
                                                         {}));
     check_vk_result(error);
-    glfwSetWindowTitle(window,std::to_string(frameData.frameID.x++).c_str());
+
+    frameData.frameID.x++;
 }
 
 void PathTracerApp::update(const float dt) {
+    glfwSetWindowTitle(window,std::to_string(frameData.frameID.x).c_str());
+
     const float movementSpeed = 300;
-    // add camera movemen
-    //TODO: remove cameraDir in calculaion
+    // add camera movement
+    //TODO: remove cameraDir in calculation
     frameData.cameraPos += dt * glm::vec4(movementSpeed * cameraDelta, 0) * frameData.cameraDir;
 
     // reset image on camera movement
