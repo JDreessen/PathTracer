@@ -53,9 +53,14 @@ private:
 
     void keyCallback(GLFWwindow *callbackWindow, int key, int scancode, int action, int mods);
 
+    void mouseButtonCallback(GLFWwindow *callbackWindow, int button, int action, int mods);
+
+    void scrollCallback(GLFWwindow *callbackWindow, double xOffset, double yOffset);
+
     void drawFrame(float dt);
 
-    void update(float dt);
+    // returns true if perspective has changed
+    bool updateCamera(float dt);
 
     void createAS(const vk::AccelerationStructureTypeKHR &type,
                   const vk::AccelerationStructureGeometryKHR &geometry,
@@ -78,6 +83,20 @@ private:
         std::string modelName;
         uint32_t maxRecursionDepth;
     }; Settings settings;
+
+    struct Inputs {
+        bool leftMousePressed = false;
+        bool rightMousePressed = false;
+        bool wPressed = false;
+        bool aPressed = false;
+        bool sPressed = false;
+        bool dPressed = false;
+        bool qPressed = false;
+        bool ePressed = false;
+        bool pPressed = false;
+        float scrollOffset = 0;
+        glm::dvec2 mouseLastPos = glm::vec2(0.0f);
+    }; Inputs inputs;
 
     GLFWwindow *window;
 
@@ -120,7 +139,6 @@ private:
     FrameData frameData; // Camera position and frame index
     vk::utils::Buffer frameDataBuffer;
     Camera camera;
-    glm::vec3 cameraDelta;
     vk::utils::RTScene scene;
 };
 

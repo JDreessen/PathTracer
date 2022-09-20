@@ -8,12 +8,13 @@
 
 #include "glm/vec3.hpp"
 #include "glm/geometric.hpp"
+#include "glm/gtx/quaternion.hpp"
 
 class Camera {
-    glm::vec3 position;
-    glm::vec3 direction;
-    glm::vec3 up;
-    glm::vec3 right;
+    glm::vec3 position{};
+    glm::vec3 direction{};
+    glm::vec3 up{};
+    glm::vec3 right{};
     float near;
     float far;
     float fov;
@@ -33,13 +34,12 @@ public:
     void setPosition(glm::vec3 position);
     void setDirection(glm::vec3 direction);
     void setUp(glm::vec3 up);
-    void setRight(glm::vec3 right);
     void setNear(float near);
     void setFar(float far);
     void setFov(float fov);
 
     void move(glm::vec3 delta);
-    void rotate(glm::vec3 delta);
+    void rotate(float angleX, float angleY);
 };
 
 

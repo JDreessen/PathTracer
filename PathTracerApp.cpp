@@ -10,7 +10,7 @@
 #include "lib/tinyobjloader/tiny_obj_loader.h"
 
 PathTracerApp::PathTracerApp()
-        : window(), settings(), vkInstance(VK_NULL_HANDLE), physicalDevice(VK_NULL_HANDLE),
+        : window(), settings(), inputs(), vkInstance(VK_NULL_HANDLE), physicalDevice(VK_NULL_HANDLE),
           device(VK_NULL_HANDLE), glfwSurface(VK_NULL_HANDLE), surfaceFormat(), surface(VK_NULL_HANDLE),
           queueFamilyIndices{~0u, ~0u, ~0u}  // max uint32_t
         , swapchain(VK_NULL_HANDLE), swapchainImages(), swapchainImageViews(), waitForFrameFences(),
@@ -19,8 +19,7 @@ PathTracerApp::PathTracerApp()
           graphicsQueue(VK_NULL_HANDLE), computeQueue(VK_NULL_HANDLE), transferQueue(VK_NULL_HANDLE),
           descriptorSetLayouts{}, pipelineLayout(VK_NULL_HANDLE), pipelineRT(VK_NULL_HANDLE),
           descriptorPoolRayGen(VK_NULL_HANDLE), descriptorPoolCHit(VK_NULL_HANDLE), descriptorSets{},
-          shaderBindingTable(), scene(), frameData(),
-          cameraDelta{0, 0, 0}, frameDataBuffer() {}
+          shaderBindingTable(), scene(), frameData(), frameDataBuffer() {}
 
 void PathTracerApp::run() {
     initSettings();
@@ -66,6 +65,8 @@ void PathTracerApp::mainLoop() {
 
         drawFrame(static_cast<float>(deltaTime));
 
+        glfwSetWindowTitle(window, std::to_string(frameData.frameID.x).c_str());
+
         glfwPollEvents();
     }
 }
@@ -79,13 +80,7 @@ void PathTracerApp::initSettings() {
     settings.maxRecursionDepth = 16;
 
     camera = Camera({275, 275, 1}, {0, 0, 1}, {0, 1, 0}, 0.1f, 1000.0f, 90.0f);
-
-    frameData.cameraPos = {275, 275, 1, 1};
-    frameData.cameraDir = {0, 0, 1, 1};
-    frameData.cameraUp = {0, 0, 1, 1};
-    frameData.cameraSide = {1, 0, 0, 1};
-    frameData.cameraNearFarFOV = {0, 1000, 90, 1};
-    frameData.frameID = {0, 0, 0, 1};
+    updateCamera(0);
 }
 
 void PathTracerApp::initGLFW() {
@@ -101,6 +96,12 @@ void PathTracerApp::initGLFW() {
                               nullptr);
     glfwSetKeyCallback(window, [](GLFWwindow *callbackWindow, int key, int scancode, int action, int mods) {
         PathTracerApp::instance().keyCallback(callbackWindow, key, scancode, action, mods);
+    });
+    glfwSetMouseButtonCallback(window, [](GLFWwindow *callbackWindow, int button, int action, int mods) {
+        PathTracerApp::instance().mouseButtonCallback(callbackWindow, button, action, mods);
+    });
+    glfwSetScrollCallback(window, [](GLFWwindow *callbackWindow, double xOffset, double yOffset) {
+        PathTracerApp::instance().scrollCallback(callbackWindow, xOffset, yOffset);
     });
 }
 
@@ -796,7 +797,11 @@ void PathTracerApp::drawFrame(const float dt) {
 
     device.resetFences(fence);
 
-    update(dt);
+    // reset image on camera movement
+    if (updateCamera(dt))
+        frameData.frameID.x = 0;
+
+    frameDataBuffer.uploadData(&frameData, sizeof(frameData));
 
     vk::PipelineStageFlags waitStageMask(vk::PipelineStageFlagBits::eColorAttachmentOutput);
     graphicsQueue.submit(vk::SubmitInfo(*semaphoreImageAvailable,
@@ -814,36 +819,73 @@ void PathTracerApp::drawFrame(const float dt) {
     frameData.frameID.x++;
 }
 
-void PathTracerApp::update(const float dt) {
-    glfwSetWindowTitle(window,std::to_string(frameData.frameID.x).c_str());
+bool PathTracerApp::updateCamera(const float dt) {
+    const float movementSpeed = 30;
+    const float rotationSpeed = 50;
+    const float fovStep = 5;
 
-    const float movementSpeed = 300;
-    // add camera movement
-    //TODO: remove cameraDir in calculation
-    frameData.cameraPos += dt * glm::vec4(movementSpeed * cameraDelta, 0) * frameData.cameraDir;
+    auto cameraPosDelta = glm::vec3(0);
+    glm::dvec2 mousePos;
+    glfwGetCursorPos(window, &mousePos.x, &mousePos.y);
 
-    // reset image on camera movement
-    if (cameraDelta != glm::vec3(0))
-        frameData.frameID.x = 0;
+    if (inputs.wPressed) cameraPosDelta.y += 1;
+    if (inputs.aPressed) cameraPosDelta.x -= 1;
+    if (inputs.sPressed) cameraPosDelta.y -= 1;
+    if (inputs.dPressed) cameraPosDelta.x += 1;
+    if (inputs.qPressed) cameraPosDelta.z -= 1;
+    if (inputs.ePressed) cameraPosDelta.z += 1;
+    camera.move(dt * movementSpeed * cameraPosDelta);
 
-    frameDataBuffer.uploadData(&frameData, sizeof(frameData));
+    glm::dvec2 mouseDelta = (mousePos - inputs.mouseLastPos) / glm::dvec2(settings.windowWidth, settings.windowHeight);
+    if (inputs.rightMousePressed)
+        camera.rotate(glm::radians(static_cast<float>(mouseDelta.x * rotationSpeed)), static_cast<float>(glm::radians(mouseDelta.y * rotationSpeed)));
+
+    camera.setFov(camera.getFov() + inputs.scrollOffset * fovStep);
+
+    frameData.cameraPos = {camera.getPosition(), 1.0f};
+    frameData.cameraDir = {camera.getDirection(), 1.0f};
+    frameData.cameraUp = {camera.getUp(), 1.0f};
+    frameData.cameraSide = {camera.getRight(), 1.0f};
+    frameData.cameraNearFarFOV = {camera.getNear(), camera.getFar(), camera.getFov(), 1.0f};
+
+    inputs.mouseLastPos = mousePos;
+    inputs.scrollOffset = 0;
+
+    return cameraPosDelta != glm::vec3(0) or inputs.rightMousePressed;
 }
 
 void PathTracerApp::keyCallback(GLFWwindow *callbackWindow, int key, int scancode, int action, int mods) {
     if (action == GLFW_PRESS) {
         if (key == GLFW_KEY_ESCAPE) glfwSetWindowShouldClose(callbackWindow, 1);
-        else if (key == GLFW_KEY_A) cameraDelta.x = -0.1;
-        else if (key == GLFW_KEY_D) cameraDelta.x = 0.1;
-        else if (key == GLFW_KEY_W) cameraDelta.y = -0.1;
-        else if (key == GLFW_KEY_S) cameraDelta.y = 0.1;
-        else if (key == GLFW_KEY_Q) cameraDelta.z = -0.1;
-        else if (key == GLFW_KEY_E) cameraDelta.z = 0.1;
+        else if (key == GLFW_KEY_W) inputs.wPressed = true;
+        else if (key == GLFW_KEY_A) inputs.aPressed = true;
+        else if (key == GLFW_KEY_S) inputs.sPressed = true;
+        else if (key == GLFW_KEY_D) inputs.dPressed = true;
+        else if (key == GLFW_KEY_Q) inputs.qPressed = true;
+        else if (key == GLFW_KEY_E) inputs.ePressed = true;
     } else if (action == GLFW_RELEASE) {
-        if (key == GLFW_KEY_A || key == GLFW_KEY_D) cameraDelta.x = 0;
-        else if (key == GLFW_KEY_W || key == GLFW_KEY_S) cameraDelta.y = 0;
-        else if (key == GLFW_KEY_Q || key == GLFW_KEY_E) cameraDelta.z = 0;
+        if (key == GLFW_KEY_W) inputs.wPressed = false;
+        else if (key == GLFW_KEY_A) inputs.aPressed = false;
+        else if (key == GLFW_KEY_S) inputs.sPressed = false;
+        else if (key == GLFW_KEY_D) inputs.dPressed = false;
+        else if (key == GLFW_KEY_Q) inputs.qPressed = false;
+        else if (key == GLFW_KEY_E) inputs.ePressed = false;
         else if (key == GLFW_KEY_P) exportImage();
     }
+}
+
+void PathTracerApp::mouseButtonCallback(GLFWwindow *callbackWindow, int button, int action, int mods) {
+    if (action == GLFW_PRESS) {
+        if (button == GLFW_MOUSE_BUTTON_LEFT) inputs.leftMousePressed = true;
+        else if (button == GLFW_MOUSE_BUTTON_RIGHT) inputs.rightMousePressed = true;
+    } else if (action == GLFW_RELEASE) {
+        if (button == GLFW_MOUSE_BUTTON_LEFT) inputs.leftMousePressed = false;
+        else if (button == GLFW_MOUSE_BUTTON_RIGHT) inputs.rightMousePressed = false;
+    }
+}
+
+void PathTracerApp::scrollCallback(GLFWwindow *callbackWindow, double xOffset, double yOffset) {
+    inputs.scrollOffset = static_cast<float>(yOffset);
 }
 
 void PathTracerApp::exportImage() {
@@ -901,7 +943,6 @@ void PathTracerApp::exportImage() {
         file << static_cast<const uint8_t *>(data)[i + 1];
         file << static_cast<const uint8_t *>(data)[i + 0];
     }
-    //file.write(reinterpret_cast<const char *>(data), windowWidth * windowHeight * 3);
 
     screenshot.getDeviceMemory().unmapMemory();
 }
