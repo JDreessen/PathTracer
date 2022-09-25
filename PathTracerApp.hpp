@@ -22,6 +22,9 @@
 
 class PathTracerApp {
 public:
+    void initSettings(std::string appName, uint32_t windowWidth, uint32_t windowHeight, std::string modelName,
+              uint32_t maxRecursionDepth);
+
     void run(); // run application
 
     static PathTracerApp &instance();
@@ -38,7 +41,6 @@ private:
 
     void mainLoop();
 
-    void initSettings();                // Initialize application settings
     void initGLFW();                    // Create glfw window
     void initVulkan();                  // Initialize vulkan instance
     void initDevicesAndQueues();        // Create vulkan devices, queue families and queues
@@ -77,12 +79,14 @@ private:
     void exportImage();
 
     struct Settings {
+        bool initialized;
         std::string name;
         uint32_t windowWidth;
         uint32_t windowHeight;
         std::string modelName;
         uint32_t maxRecursionDepth;
-    }; Settings settings;
+    };
+    Settings settings;
 
     struct Inputs {
         bool leftMousePressed = false;
@@ -96,8 +100,10 @@ private:
         bool pPressed = false;
         float scrollOffset = 0;
         glm::dvec2 mouseLastPos = glm::vec2(0.0f);
-    }; Inputs inputs;
+    };
+    Inputs inputs;
 
+    bool initialized{};
     GLFWwindow *window;
 
     vk::raii::Context context;

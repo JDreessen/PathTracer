@@ -4,13 +4,15 @@
 
 #include "PathTracerApp.hpp"
 #include <iostream>
+#include <utility>
 
 #define TINYOBJLOADER_IMPLEMENTATION
 
 #include "lib/tinyobjloader/tiny_obj_loader.h"
 
 PathTracerApp::PathTracerApp()
-        : window(), settings(), inputs(), vkInstance(VK_NULL_HANDLE), physicalDevice(VK_NULL_HANDLE),
+        : window(), settings(), inputs(), vkInstance(VK_NULL_HANDLE),
+          physicalDevice(VK_NULL_HANDLE),
           device(VK_NULL_HANDLE), glfwSurface(VK_NULL_HANDLE), surfaceFormat(), surface(VK_NULL_HANDLE),
           queueFamilyIndices{~0u, ~0u, ~0u}  // max uint32_t
         , swapchain(VK_NULL_HANDLE), swapchainImages(), swapchainImageViews(), waitForFrameFences(),
@@ -21,9 +23,23 @@ PathTracerApp::PathTracerApp()
           descriptorPoolRayGen(VK_NULL_HANDLE), descriptorPoolCHit(VK_NULL_HANDLE), descriptorSets{},
           shaderBindingTable(), scene(), frameData(), frameDataBuffer() {}
 
+void PathTracerApp::initSettings(std::string appName = "PathTracer", uint32_t windowWidth = 800, uint32_t windowHeight = 600, std::string modelName = "cornell_box", uint32_t maxRecursionDepth = 16) {
+    settings.initialized = true;
+    settings.name = std::move(appName);
+    settings.windowWidth = windowWidth;
+    settings.windowHeight = windowHeight;
+    settings.modelName = std::move(modelName);
+    settings.maxRecursionDepth = maxRecursionDepth;
+
+    camera = Camera({275, 275, 1}, {0, 0, 1}, {0, 1, 0}, 0.1f, 1000.0f, 90.0f);
+
+    frameData.frameID = glm::vec4(0);
+}
+
 void PathTracerApp::run() {
-    initSettings();
+    if (!initialized) initSettings();
     initGLFW();
+    updateCamera(0);
     initVulkan();
     initDevicesAndQueues();
     initSurface();
@@ -65,22 +81,10 @@ void PathTracerApp::mainLoop() {
 
         drawFrame(static_cast<float>(deltaTime));
 
-        glfwSetWindowTitle(window, std::to_string(frameData.frameID.x).c_str());
+        glfwSetWindowTitle(window, (settings.name + " | Frame: " + std::to_string(frameData.frameID.x)).c_str());
 
         glfwPollEvents();
     }
-}
-
-//void PathTracerApp::initSettings(std::string appName = "PathTracer", uint32_t width = 800, uint32_t height = 600, std::string modelName = "cornell_box", uint32_t maxRecursionDepth = 31) {
-void PathTracerApp::initSettings() {
-    settings.name = "PathTracer";
-    settings.windowWidth = 1280;
-    settings.windowHeight = 720;
-    settings.modelName = "cornell_box";
-    settings.maxRecursionDepth = 16;
-
-    camera = Camera({275, 275, 1}, {0, 0, 1}, {0, 1, 0}, 0.1f, 1000.0f, 90.0f);
-    updateCamera(0);
 }
 
 void PathTracerApp::initGLFW() {
@@ -828,17 +832,18 @@ bool PathTracerApp::updateCamera(const float dt) {
     glm::dvec2 mousePos;
     glfwGetCursorPos(window, &mousePos.x, &mousePos.y);
 
-    if (inputs.wPressed) cameraPosDelta.y += 1;
-    if (inputs.aPressed) cameraPosDelta.x -= 1;
-    if (inputs.sPressed) cameraPosDelta.y -= 1;
-    if (inputs.dPressed) cameraPosDelta.x += 1;
-    if (inputs.qPressed) cameraPosDelta.z -= 1;
-    if (inputs.ePressed) cameraPosDelta.z += 1;
-    camera.move(dt * movementSpeed * cameraPosDelta);
+    if (inputs.wPressed) cameraPosDelta.y += movementSpeed * dt;
+    if (inputs.aPressed) cameraPosDelta.x -= movementSpeed * dt;
+    if (inputs.sPressed) cameraPosDelta.y -= movementSpeed * dt;
+    if (inputs.dPressed) cameraPosDelta.x += movementSpeed * dt;
+    if (inputs.qPressed) cameraPosDelta.z -= movementSpeed * dt;
+    if (inputs.ePressed) cameraPosDelta.z += movementSpeed * dt;
+    camera.move(glm::vec3(camera.getRotationMatrix() * glm::dvec4(cameraPosDelta, 0)));
 
     glm::dvec2 mouseDelta = (mousePos - inputs.mouseLastPos) / glm::dvec2(settings.windowWidth, settings.windowHeight);
     if (inputs.rightMousePressed)
-        camera.rotate(glm::radians(static_cast<float>(mouseDelta.x * rotationSpeed)), static_cast<float>(glm::radians(mouseDelta.y * rotationSpeed)));
+        camera.rotate(glm::radians(static_cast<float>(mouseDelta.x * rotationSpeed)),
+                      static_cast<float>(glm::radians(mouseDelta.y * rotationSpeed)));
 
     camera.setFov(camera.getFov() + inputs.scrollOffset * fovStep);
 

@@ -40,6 +40,7 @@ public:
 
     void move(glm::vec3 delta);
     void rotate(float angleX, float angleY);
+    glm::mat4 getRotationMatrix();
 };
 
 

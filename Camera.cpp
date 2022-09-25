@@ -61,3 +61,20 @@ void Camera::rotate(float angleX, float angleY) {
     glm::quat rotationQ = pitchQ * yawQ;
     setDirection(glm::rotate(rotationQ, this->direction));
 }
+// get rotation matrix of camera
+glm::mat4 Camera::getRotationMatrix() {
+    glm::vec3 x = glm::normalize(this->right);
+    glm::vec3 y = glm::normalize(this->up);
+    glm::vec3 z = glm::normalize(this->direction);
+    glm::mat4 rotationMatrix = glm::mat4(1.0f);
+    rotationMatrix[0][0] = x.x;
+    rotationMatrix[1][0] = x.y;
+    rotationMatrix[2][0] = x.z;
+    rotationMatrix[0][1] = y.x;
+    rotationMatrix[1][1] = y.y;
+    rotationMatrix[2][1] = y.z;
+    rotationMatrix[0][2] = z.x;
+    rotationMatrix[1][2] = z.y;
+    rotationMatrix[2][2] = z.z;
+    return rotationMatrix;
+}
