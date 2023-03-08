@@ -23,7 +23,9 @@ PathTracerApp::PathTracerApp()
           descriptorPoolRayGen(VK_NULL_HANDLE), descriptorPoolCHit(VK_NULL_HANDLE), descriptorSets{},
           shaderBindingTable(), scene(), frameData(), frameDataBuffer() {}
 
-void PathTracerApp::initSettings(std::string appName = "PathTracer", uint32_t windowWidth = 800, uint32_t windowHeight = 600, std::string modelName = "cornell_box", uint32_t maxRecursionDepth = 16) {
+void PathTracerApp::initSettings(
+        std::string appName = "PathTracer", uint32_t windowWidth = 800, uint32_t windowHeight = 600,
+        std::string modelName = "cornell_box", uint32_t maxRecursionDepth = 16) {
     settings.initialized = true;
     settings.name = std::move(appName);
     settings.windowWidth = windowWidth;
@@ -130,7 +132,7 @@ void PathTracerApp::initVulkan() {
                                                               VK_MAKE_VERSION(1, 0, 0),
                                                               VK_API_VERSION_1_2);
 
-    vk::InstanceCreateInfo instanceCreateInfo = vk::InstanceCreateInfo({},
+    vk::InstanceCreateInfo instanceCreateInfo = vk::InstanceCreateInfo({ /* flags */},
                                                                        &applicationInfo,
                                                                        instanceLayers,
                                                                        instanceExtensions);
@@ -232,7 +234,7 @@ void PathTracerApp::initDevicesAndQueues() {
 
     vk::DeviceCreateInfo deviceCreateInfo(vk::DeviceCreateFlags(),
                                           deviceQueueCreateInfos,
-                                          {},
+                                          { /* enabledLayerNames */ },
                                           requiredExtensions,
                                           &supportedFeatures.get<vk::PhysicalDeviceFeatures2>().features);
     deviceCreateInfo.pNext = &supportedFeatures.get<vk::PhysicalDeviceDescriptorIndexingFeaturesEXT>();
@@ -269,7 +271,7 @@ void PathTracerApp::initSurface() {
     // fallback to first available surfaceFormat
     if (auto it = std::find(surfaceFormats.begin(), surfaceFormats.end(),
                             vk::SurfaceFormatKHR(vk::Format::eB8G8R8A8Unorm, vk::ColorSpaceKHR::eSrgbNonlinear)); it !=
-                                                                                                                  surfaceFormats.end()) {
+                            surfaceFormats.end()) {
         surfaceFormat = vk::SurfaceFormatKHR(*it);
     } else surfaceFormat = vk::SurfaceFormatKHR(surfaceFormats[0]);
 }
@@ -285,31 +287,33 @@ void PathTracerApp::initSwapchain() {
                                        surfaceCapabilities.maxImageExtent.height);
 
     // since we only care about rendering static images, present mode doesn't matter so FIFO is fine
-    vk::SwapchainCreateInfoKHR swapchainCreateInfo({},
-                                                   *surface,
-                                                   surfaceCapabilities.minImageCount,
-                                                   surfaceFormat.format,
-                                                   surfaceFormat.colorSpace,
-                                                   {settings.windowWidth, settings.windowHeight},
-                                                   1,
-                                                   vk::ImageUsageFlagBits::eColorAttachment |
-                                                   vk::ImageUsageFlagBits::eTransferDst,
-                                                   vk::SharingMode::eConcurrent, // simpler, but less performant
-                                                   queueFamilyIndices,
-                                                   vk::SurfaceTransformFlagBitsKHR::eIdentity,
-                                                   vk::CompositeAlphaFlagBitsKHR::eOpaque,
-                                                   vk::PresentModeKHR::eFifo,
-                                                   VK_TRUE,
-                                                   VK_NULL_HANDLE); // required for rebuilding swapchain to enable resizing window
+    vk::SwapchainCreateInfoKHR swapchainCreateInfo(
+            { /* flags */ },
+           *surface,
+           surfaceCapabilities.minImageCount,
+           surfaceFormat.format,
+           surfaceFormat.colorSpace,
+           {settings.windowWidth, settings.windowHeight},
+           1,
+           vk::ImageUsageFlagBits::eColorAttachment |
+           vk::ImageUsageFlagBits::eTransferDst,
+           vk::SharingMode::eConcurrent, // simpler, but less performant
+           queueFamilyIndices,
+           vk::SurfaceTransformFlagBitsKHR::eIdentity,
+           vk::CompositeAlphaFlagBitsKHR::eOpaque,
+           vk::PresentModeKHR::eFifo,
+           VK_TRUE,
+           VK_NULL_HANDLE); // required for rebuilding swapchain to enable resizing window
     swapchain = device.createSwapchainKHR(swapchainCreateInfo);
 
     // get swapchain images and create corresponding image views
     swapchainImages = swapchain.getImages();
-    vk::ImageViewCreateInfo imageViewCreateInfo({},
-                                                {},
-                                                vk::ImageViewType::e2D, surfaceFormat.format,
-                                                {},
-                                                {vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1});
+    vk::ImageViewCreateInfo imageViewCreateInfo(
+            { /* flags */},
+            { /* image */},
+            vk::ImageViewType::e2D, surfaceFormat.format,
+            { /* components */},
+            {vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1});
     for (const auto &swapchainImage: swapchainImages) {
         imageViewCreateInfo.image = swapchainImage;
         swapchainImageViews.emplace_back(device, imageViewCreateInfo);
@@ -327,20 +331,18 @@ void PathTracerApp::initSyncObjects() {
 }
 
 void PathTracerApp::initImages() {
-    resultImage = vk::utils::Image(vk::ImageType::e2D,
-                                   surfaceFormat.format,
-                                   {settings.windowWidth, settings.windowHeight, 1},
-                                   vk::ImageTiling::eOptimal,
-                                   vk::ImageUsageFlagBits::eStorage | vk::ImageUsageFlagBits::eTransferSrc,
-                                   vk::MemoryPropertyFlagBits::eDeviceLocal);
+    resultImage = vk::utils::Image(
+            vk::ImageType::e2D,
+            surfaceFormat.format,
+            {settings.windowWidth, settings.windowHeight, 1},
+            vk::ImageTiling::eOptimal,
+            vk::ImageUsageFlagBits::eStorage | vk::ImageUsageFlagBits::eTransferSrc,
+            vk::MemoryPropertyFlagBits::eDeviceLocal);
 
-    resultImage.createImageView(vk::ImageViewType::e2D,
-                                surfaceFormat.format,
-                                {vk::ImageAspectFlagBits::eColor,
-                                 0,
-                                 1,
-                                 0,
-                                 1});
+    resultImage.createImageView(
+            vk::ImageViewType::e2D,
+            surfaceFormat.format,
+            vk::ImageSubresourceRange{vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1});
 }
 
 void PathTracerApp::initCommandPoolAndBuffers() {
@@ -362,7 +364,7 @@ void PathTracerApp::initCommandPoolAndBuffers() {
 void PathTracerApp::fillCommandBuffers() {
     for (size_t i = 0; i < commandBuffers.size() - 1; ++i) {
         const vk::raii::CommandBuffer &commandBuffer = commandBuffers[i];
-        commandBuffer.begin({});
+        commandBuffer.begin({ /* beginInfo */ });
 
         commandBuffer.pushConstants<uint32_t>(*pipelineLayout, vk::ShaderStageFlagBits::eClosestHitKHR, 0,
                                               {settings.maxRecursionDepth});
@@ -370,7 +372,7 @@ void PathTracerApp::fillCommandBuffers() {
         vk::utils::imageBarrier(commandBuffer,
                                 *resultImage.getImage(),
                                 {vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1},
-                                {},
+                                { /* srcAccessMask */},
                                 vk::AccessFlagBits::eShaderWrite,
                                 vk::ImageLayout::eUndefined,
                                 vk::ImageLayout::eGeneral);
@@ -380,7 +382,7 @@ void PathTracerApp::fillCommandBuffers() {
         vk::utils::imageBarrier(commandBuffer,
                                 swapchainImages[i],
                                 {vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1},
-                                {},
+                                { /* srcAccessMask */},
                                 vk::AccessFlagBits::eTransferWrite,
                                 vk::ImageLayout::eUndefined,
                                 vk::ImageLayout::eTransferDstOptimal);
@@ -408,7 +410,7 @@ void PathTracerApp::fillCommandBuffers() {
         vk::utils::imageBarrier(commandBuffer, swapchainImages[i],
                                 {vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1},
                                 vk::AccessFlagBits::eTransferWrite,
-                                {},
+                                { /* dstAccessMask */},
                                 vk::ImageLayout::eTransferDstOptimal,
                                 vk::ImageLayout::ePresentSrcKHR);
 
@@ -424,7 +426,7 @@ void PathTracerApp::fillCommandBuffer(const vk::raii::CommandBuffer &commandBuff
     std::for_each(descriptorSets.begin(), descriptorSets.end(),
                   [&sets](const auto &e) { sets.push_back(*e); });
 
-    commandBuffer.bindDescriptorSets(vk::PipelineBindPoint::eRayTracingKHR, *pipelineLayout, 0, sets, {});
+    commandBuffer.bindDescriptorSets(vk::PipelineBindPoint::eRayTracingKHR, *pipelineLayout, 0, sets, { /* dynamicOffsets */ });
 
     // our shader binding table layout:
     // |[ raygen ]|[miss]|[closest hit]|
@@ -476,7 +478,7 @@ void PathTracerApp::createAS(const vk::AccelerationStructureTypeKHR &type,
         geometryCount = instances.size();
 
         _as.instancesBuffer = {
-                {{}, sizeof(instances[0]) * instances.size(), vk::BufferUsageFlagBits::eShaderDeviceAddress |
+                {{ /* flags */ }, sizeof(instances[0]) * instances.size(), vk::BufferUsageFlagBits::eShaderDeviceAddress |
                                                               vk::BufferUsageFlagBits::eAccelerationStructureStorageKHR |
                                                               vk::BufferUsageFlagBits::eAccelerationStructureBuildInputReadOnlyKHR},
                 vk::MemoryPropertyFlagBits::eHostVisible |
@@ -486,21 +488,21 @@ void PathTracerApp::createAS(const vk::AccelerationStructureTypeKHR &type,
 
         vk::AccelerationStructureGeometryInstancesDataKHR instancesData(VK_FALSE,
                                                                         _as.instancesBuffer.getAddress());
-        geometry = {vk::GeometryTypeKHR::eInstances, {instancesData}, {}};
+        geometry = {vk::GeometryTypeKHR::eInstances, {instancesData}, { /* flags */ }};
     }
 
     vk::AccelerationStructureBuildGeometryInfoKHR geometryInfo(type,
-                                                               {},
+                                                               { /* flags */},
                                                                vk::BuildAccelerationStructureModeKHR::eBuild,
-                                                               {},
-                                                               {},
+                                                               { /* srcAccelerationStructure */},
+                                                               { /* dstAccelerationStructure */},
                                                                geometry);
 
     vk::AccelerationStructureBuildSizesInfoKHR sizeInfo = device.getAccelerationStructureBuildSizesKHR(
             vk::AccelerationStructureBuildTypeKHR::eDevice, geometryInfo, geometryCount);
 
     _as.buffer = {{
-                          {},
+                          { /* flags */},
                           sizeInfo.accelerationStructureSize,
                           vk::BufferUsageFlagBits::eShaderDeviceAddress |
                           vk::BufferUsageFlagBits::eAccelerationStructureStorageKHR |
@@ -509,15 +511,15 @@ void PathTracerApp::createAS(const vk::AccelerationStructureTypeKHR &type,
                   vk::MemoryPropertyFlagBits::eDeviceLocal};
 
     _as.accelerationStructure = device.createAccelerationStructureKHR(
-            {{},
+            {{ /* createFlags */},
              *_as.buffer.getBuffer(),
-             {},
+             { /* offset */},
              sizeInfo.accelerationStructureSize,
              type});
     geometryInfo.dstAccelerationStructure = *_as.accelerationStructure;
 
     vk::utils::Buffer scratchBuffer({
-                                            {},
+                                            { /* flags */},
                                             sizeInfo.buildScratchSize,
                                             vk::BufferUsageFlagBits::eShaderDeviceAddress |
                                             vk::BufferUsageFlagBits::eAccelerationStructureStorageKHR |
@@ -537,7 +539,7 @@ void PathTracerApp::createAS(const vk::AccelerationStructureTypeKHR &type,
 
 // load scene data from obj file into acceleration structure
 void PathTracerApp::createScene() {
-    frameDataBuffer = {{{}, sizeof(frameData), vk::BufferUsageFlagBits::eUniformBuffer},
+    frameDataBuffer = {{{ /* flags */ }, sizeof(frameData), vk::BufferUsageFlagBits::eUniformBuffer},
                        vk::MemoryPropertyFlagBits::eHostVisible};
     frameDataBuffer.uploadData(&frameData, sizeof(frameData));
 
@@ -591,7 +593,7 @@ void PathTracerApp::createScene() {
             newMaterials.push_back(material);
         }
         scene.vertexBuffers.emplace_back(
-                vk::BufferCreateInfo({}, sizeof(glm::vec4) * vertices.size(), vk::BufferUsageFlagBits::eStorageBuffer |
+                vk::BufferCreateInfo({ /* flags */ }, sizeof(glm::vec4) * vertices.size(), vk::BufferUsageFlagBits::eStorageBuffer |
                                                                               vk::BufferUsageFlagBits::eAccelerationStructureStorageKHR |
                                                                               vk::BufferUsageFlagBits::eShaderDeviceAddress |
                                                                               vk::BufferUsageFlagBits::eAccelerationStructureBuildInputReadOnlyKHR),
@@ -601,7 +603,7 @@ void PathTracerApp::createScene() {
         scene.vertexBuffers.back().uploadData(vertices.data(), scene.vertexBuffers.back().getSize());
 
         scene.indexBuffers.emplace_back(
-                vk::BufferCreateInfo({}, sizeof(uint32_t) * indices.size(), vk::BufferUsageFlagBits::eStorageBuffer |
+                vk::BufferCreateInfo({ /* flags */ }, sizeof(uint32_t) * indices.size(), vk::BufferUsageFlagBits::eStorageBuffer |
                                                                             vk::BufferUsageFlagBits::eAccelerationStructureStorageKHR |
                                                                             vk::BufferUsageFlagBits::eShaderDeviceAddress |
                                                                             vk::BufferUsageFlagBits::eAccelerationStructureBuildInputReadOnlyKHR),
@@ -611,7 +613,7 @@ void PathTracerApp::createScene() {
         scene.indexBuffers.back().uploadData(indices.data(), scene.indexBuffers.back().getSize());
 
         scene.materialBuffers.emplace_back(
-                vk::BufferCreateInfo({}, sizeof(Material) * newMaterials.size(),
+                vk::BufferCreateInfo({ /* flags */ }, sizeof(Material) * newMaterials.size(),
                                      vk::BufferUsageFlagBits::eStorageBuffer |
                                      vk::BufferUsageFlagBits::eShaderDeviceAddress),
                 vk::MemoryPropertyFlagBits::eHostVisible |
@@ -635,7 +637,7 @@ void PathTracerApp::createScene() {
                  geometry,
                  scene.bottomLevelAS.back());
     }
-    createAS(vk::AccelerationStructureTypeKHR::eTopLevel, {}, scene.topLevelAS);
+    createAS(vk::AccelerationStructureTypeKHR::eTopLevel, { /* geometry */ }, scene.topLevelAS);
 }
 
 // create raytracing pipeline with shaders and associated data
@@ -658,10 +660,10 @@ void PathTracerApp::createRaytracingPipeline() {
             {0, vk::DescriptorType::eStorageBuffer, static_cast<uint32_t>(scene.materialBuffers.size()),
              vk::ShaderStageFlagBits::eClosestHitKHR}};
 
-    descriptorSetLayouts.push_back(device.createDescriptorSetLayout({{}, bindingsRayGen}));
-    descriptorSetLayouts.push_back(device.createDescriptorSetLayout({{}, bindingVertexBuffer}));
-    descriptorSetLayouts.push_back(device.createDescriptorSetLayout({{}, bindingIndexBuffer}));
-    descriptorSetLayouts.push_back(device.createDescriptorSetLayout({{}, bindingMaterialBuffer}));
+    descriptorSetLayouts.push_back(device.createDescriptorSetLayout({{ /* flags */ }, bindingsRayGen}));
+    descriptorSetLayouts.push_back(device.createDescriptorSetLayout({{ /* flags */ }, bindingVertexBuffer}));
+    descriptorSetLayouts.push_back(device.createDescriptorSetLayout({{ /* flags */ }, bindingIndexBuffer}));
+    descriptorSetLayouts.push_back(device.createDescriptorSetLayout({{ /* flags */ }, bindingMaterialBuffer}));
 
     std::vector<vk::DescriptorSetLayout> layouts{};
     std::for_each(descriptorSetLayouts.begin(), descriptorSetLayouts.end(),
@@ -669,7 +671,7 @@ void PathTracerApp::createRaytracingPipeline() {
 
     vk::PushConstantRange pushConstantRange(vk::ShaderStageFlagBits::eClosestHitKHR, 0, sizeof(uint32_t));
 
-    pipelineLayout = device.createPipelineLayout({{}, layouts, pushConstantRange});
+    pipelineLayout = device.createPipelineLayout({{ /* flags */ }, layouts, pushConstantRange});
 
     vk::utils::Shader rayGenShader("../shaderBin/rayGen.bin", vk::ShaderStageFlagBits::eRaygenKHR);
     vk::utils::Shader rayMissShader("../shaderBin/rayMiss.bin", vk::ShaderStageFlagBits::eMissKHR);
@@ -688,8 +690,8 @@ void PathTracerApp::createRaytracingPipeline() {
     };
 
     pipelineRT = device.createRayTracingPipelineKHR(VK_NULL_HANDLE, VK_NULL_HANDLE,
-                                                    {{}, shaderStages, shaderGroups, settings.maxRecursionDepth, {}, {},
-                                                     {}, *pipelineLayout});
+                                                    {{ /* flags */ }, shaderStages, shaderGroups, settings.maxRecursionDepth, { /* libraryInfo */ }, { /* libraryInterface */ },
+                                                     { /* dynamicState */ }, *pipelineLayout});
 }
 
 // create the shader binding table structure containing the shader groups and their respective shaders
@@ -702,7 +704,7 @@ void PathTracerApp::createShaderBindingTable() {
     const uint32_t shaderBindingTableSize = pipelineProperties.shaderGroupHandleSize * numGroups;
     const uint32_t shaderBindingTableSizeAligned = sbtChunkSize * numGroups;
 
-    shaderBindingTable = {{{}, shaderBindingTableSizeAligned,
+    shaderBindingTable = {{{ /* flags */ }, shaderBindingTableSizeAligned,
                            {vk::BufferUsageFlagBits::eTransferSrc |
                             vk::BufferUsageFlagBits::eShaderBindingTableKHR |
                             vk::BufferUsageFlagBits::eShaderDeviceAddress}},
@@ -758,28 +760,28 @@ void PathTracerApp::createDescriptorSets() {
 
     // set 0, binding 2: instance data buffer
     vk::DescriptorBufferInfo descriptorFrameDataBufferInfo(*frameDataBuffer.getBuffer(), 0, frameDataBuffer.getSize());
-    vk::WriteDescriptorSet frameDataWrite(*descriptorSets[0], 2, 0, vk::DescriptorType::eUniformBuffer, {},
+    vk::WriteDescriptorSet frameDataWrite(*descriptorSets[0], 2, 0, vk::DescriptorType::eUniformBuffer, { /* imageInfo */ },
                                           descriptorFrameDataBufferInfo);
 
     // set 1, binding 0: vertex buffers for each instance (shape)
     std::vector<vk::DescriptorBufferInfo> descriptorVertexBufferInfos{};
     for (const auto &buffer: scene.vertexBuffers)
         descriptorVertexBufferInfos.emplace_back(*buffer.getBuffer(), 0, buffer.getSize());
-    vk::WriteDescriptorSet vertexWrite(*descriptorSets[1], 0, 0, vk::DescriptorType::eStorageBuffer, {},
+    vk::WriteDescriptorSet vertexWrite(*descriptorSets[1], 0, 0, vk::DescriptorType::eStorageBuffer, { /* imageInfo */ },
                                        descriptorVertexBufferInfos);
 
     // set 2, binding 0: index buffers for each instance (shape)
     std::vector<vk::DescriptorBufferInfo> descriptorIndexBufferInfos{};
     for (const auto &buffer: scene.indexBuffers)
         descriptorIndexBufferInfos.emplace_back(*buffer.getBuffer(), 0, buffer.getSize());
-    vk::WriteDescriptorSet indexWrite(*descriptorSets[2], 0, 0, vk::DescriptorType::eStorageBuffer, {},
+    vk::WriteDescriptorSet indexWrite(*descriptorSets[2], 0, 0, vk::DescriptorType::eStorageBuffer, { /* imageInfo */ },
                                       descriptorIndexBufferInfos);
 
     // set 3, binding 0: material buffers for each instance (shape)
     std::vector<vk::DescriptorBufferInfo> descriptorMaterialBufferInfos{};
     for (const auto &buffer: scene.materialBuffers)
         descriptorMaterialBufferInfos.emplace_back(*buffer.getBuffer(), 0, buffer.getSize());
-    vk::WriteDescriptorSet materialWrite(*descriptorSets[3], 0, 0, vk::DescriptorType::eStorageBuffer, {},
+    vk::WriteDescriptorSet materialWrite(*descriptorSets[3], 0, 0, vk::DescriptorType::eStorageBuffer, { /* imageInfo */},
                                          descriptorMaterialBufferInfos);
 
     std::vector<vk::WriteDescriptorSet> descriptorWrites{accelerationStructureWrite,
@@ -817,7 +819,7 @@ void PathTracerApp::drawFrame(const float dt) {
     error = graphicsQueue.presentKHR(vk::PresentInfoKHR(*semaphoreRenderFinished,
                                                         *swapchain,
                                                         imageIndex,
-                                                        {}));
+                                                        { /* results */ }));
     check_vk_result(error);
 
     frameData.frameID.x++;
@@ -912,7 +914,7 @@ void PathTracerApp::exportImage() {
     vk::utils::imageBarrier(computeCommandBuffer,
                             *resultImage.getImage(),
                             {vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1},
-                            {},
+                            { /* srcAccessMask */ },
                             vk::AccessFlagBits::eShaderWrite,
                             vk::ImageLayout::eUndefined,
                             vk::ImageLayout::eTransferSrcOptimal);
@@ -920,7 +922,7 @@ void PathTracerApp::exportImage() {
     vk::utils::imageBarrier(computeCommandBuffer,
                             *screenshot.getImage(),
                             {vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1},
-                            {},
+                            { /* srcAccessMask */},
                             vk::AccessFlagBits::eShaderWrite,
                             vk::ImageLayout::eUndefined,
                             vk::ImageLayout::eTransferDstOptimal);
