@@ -28,10 +28,11 @@ Download and extract the latest [glslang release](https://github.com/KhronosGrou
     cmake -G Ninja -S . -B release -DCMAKE_BUILD_TYPE=Release
     ninja -C release
     .\compileShaders.bat
-Note: Shaders have to be recompiled after modifying the shader files.
+Note: Shaders have to be recompiled every time the shader source files are modified.
 ## Key Bindings
 - `ESC`: Quit program
 - `WASDQE`: Camera Movement
+- `Scroll`: Change FOV
 - `P`: Take screenshot
 
 ## Resources

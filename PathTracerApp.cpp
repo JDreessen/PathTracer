@@ -59,6 +59,8 @@ void PathTracerApp::run() {
     fillCommandBuffers();
 
     mainLoop();
+
+    device.waitIdle();
 }
 
 PathTracerApp &PathTracerApp::instance() {
@@ -286,7 +288,7 @@ void PathTracerApp::initSwapchain() {
     settings.windowHeight = std::clamp(settings.windowHeight, surfaceCapabilities.minImageExtent.height,
                                        surfaceCapabilities.maxImageExtent.height);
 
-    // since we only care about rendering static images, present mode doesn't matter so FIFO is fine
+    // since input latency is irrelevant to us, present mode doesn't matter so FIFO is fine
     vk::SwapchainCreateInfoKHR swapchainCreateInfo(
             { /* flags */ },
            *surface,
@@ -324,10 +326,10 @@ void PathTracerApp::initSyncObjects() {
     for (const auto &e: swapchainImages)
         waitForFrameFences.emplace_back(device, vk::FenceCreateInfo(vk::FenceCreateFlagBits::eSignaled));
 
-    graphicsPool = device.createCommandPool(vk::CommandPoolCreateInfo());
+    graphicsPool = device.createCommandPool(vk::CommandPoolCreateInfo{});
 
-    semaphoreImageAvailable = device.createSemaphore(vk::SemaphoreCreateInfo());
-    semaphoreRenderFinished = device.createSemaphore(vk::SemaphoreCreateInfo());
+    semaphoreImageAvailable = device.createSemaphore(vk::SemaphoreCreateInfo{});
+    semaphoreRenderFinished = device.createSemaphore(vk::SemaphoreCreateInfo{});
 }
 
 void PathTracerApp::initImages() {
