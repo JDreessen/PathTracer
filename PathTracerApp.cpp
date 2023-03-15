@@ -826,6 +826,8 @@ void PathTracerApp::drawFrame(const float dt) {
 }
 
 bool PathTracerApp::updateCamera(const float dt) {
+    bool cameraMoved = false;
+
     const float movementSpeed = 30;
     const float rotationSpeed = 50;
     const float fovStep = 5;
@@ -834,20 +836,20 @@ bool PathTracerApp::updateCamera(const float dt) {
     glm::dvec2 mousePos;
     glfwGetCursorPos(window, &mousePos.x, &mousePos.y);
 
-    if (inputs.wPressed) cameraPosDelta.y += movementSpeed * dt;
-    if (inputs.aPressed) cameraPosDelta.x -= movementSpeed * dt;
-    if (inputs.sPressed) cameraPosDelta.y -= movementSpeed * dt;
-    if (inputs.dPressed) cameraPosDelta.x += movementSpeed * dt;
-    if (inputs.qPressed) cameraPosDelta.z -= movementSpeed * dt;
-    if (inputs.ePressed) cameraPosDelta.z += movementSpeed * dt;
-    camera.move(glm::vec3(camera.getRotationMatrix() * glm::dvec4(cameraPosDelta, 0)));
+    if (inputs.wPressed) cameraPosDelta += camera.getUp() * movementSpeed * dt;
+    if (inputs.aPressed) cameraPosDelta -= camera.getRight() * movementSpeed * dt;
+    if (inputs.sPressed) cameraPosDelta -= camera.getUp() * movementSpeed * dt;
+    if (inputs.dPressed) cameraPosDelta += camera.getRight() * movementSpeed * dt;
+    if (inputs.qPressed) cameraPosDelta -= camera.getDirection() * movementSpeed * dt;
+    if (inputs.ePressed) cameraPosDelta += camera.getDirection() * movementSpeed * dt;
+    camera.move(cameraPosDelta);
 
     glm::dvec2 mouseDelta = (mousePos - inputs.mouseLastPos) / glm::dvec2(settings.windowWidth, settings.windowHeight);
     if (inputs.rightMousePressed)
         camera.rotate(glm::radians(static_cast<float>(mouseDelta.x * rotationSpeed)),
                       static_cast<float>(glm::radians(mouseDelta.y * rotationSpeed)));
 
-    camera.setFov(camera.getFov() + inputs.scrollOffset * fovStep);
+    camera.setFov(camera.getFov() - inputs.scrollOffset * fovStep);
 
     frameData.cameraPos = {camera.getPosition(), 1.0f};
     frameData.cameraDir = {camera.getDirection(), 1.0f};
@@ -855,10 +857,12 @@ bool PathTracerApp::updateCamera(const float dt) {
     frameData.cameraSide = {camera.getRight(), 1.0f};
     frameData.cameraNearFarFOV = {camera.getNear(), camera.getFar(), camera.getFov(), 1.0f};
 
+    cameraMoved = cameraPosDelta != glm::vec3(0) or inputs.rightMousePressed or inputs.scrollOffset != 0;
+
     inputs.mouseLastPos = mousePos;
     inputs.scrollOffset = 0;
 
-    return cameraPosDelta != glm::vec3(0) or inputs.rightMousePressed;
+    return cameraMoved;
 }
 
 void PathTracerApp::keyCallback(GLFWwindow *callbackWindow, int key, int scancode, int action, int mods) {

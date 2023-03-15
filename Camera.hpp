@@ -13,8 +13,8 @@
 class Camera {
     glm::vec3 position{};
     glm::vec3 direction{};
-    glm::vec3 up{};
-    glm::vec3 right{};
+    glm::vec3 v{};
+    glm::vec3 u{};
     float near;
     float far;
     float fov;
@@ -33,7 +33,6 @@ public:
 
     void setPosition(glm::vec3 position);
     void setDirection(glm::vec3 direction);
-    void setUp(glm::vec3 up);
     void setNear(float near);
     void setFar(float far);
     void setFov(float fov);

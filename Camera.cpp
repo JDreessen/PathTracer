@@ -4,33 +4,21 @@
 
 #include "Camera.hpp"
 
-Camera::Camera() {
-    position = glm::vec3(0, 0, 0);
-    direction = glm::vec3(0, 0, 1);
-    up = glm::vec3(0, 1, 0);
-    right = glm::cross(direction, up);
-    near = 0.1f;
-    far = 1000.0f;
-    fov = 90.0f;
-}
+Camera::Camera() : position(glm::vec3(0, 0, 0)), direction(glm::vec3(0, 0, 1)),
+    u(glm::cross(glm::vec3(0, 1, 0), direction)),
+    v(glm::cross(direction, u)), near(0.1f), far(1000.0f), fov(90.0f) {}
 
-Camera::Camera(glm::vec3 position, glm::vec3 direction, glm::vec3 up, float near, float far, float fov) {
-    this->position = position;
-    this->direction = direction;
-    this->up = up;
-    this->right = glm::cross(direction, up);
-    this->near = near;
-    this->far = far;
-    this->fov = fov;
-}
+Camera::Camera(glm::vec3 position, glm::vec3 direction, glm::vec3 up, float near, float far, float fov)
+    : position(position), direction(direction), u(glm::cross(up, direction)), v(glm::cross(direction, u)),
+    near(near), far(far), fov(fov) {}
 
 glm::vec3 Camera::getPosition() const { return this->position; }
 
 glm::vec3 Camera::getDirection() const { return this->direction; }
 
-glm::vec3 Camera::getUp() const { return this->up; }
+glm::vec3 Camera::getUp() const { return this->v; }
 
-glm::vec3 Camera::getRight() const { return this->right; }
+glm::vec3 Camera::getRight() const { return this->u; }
 
 float Camera::getNear() const { return this->near; }
 
@@ -42,10 +30,9 @@ void Camera::setPosition(glm::vec3 position) { this->position = position; }
 
 void Camera::setDirection(glm::vec3 direction) {
     this->direction = direction;
-    this->right = glm::cross(direction, up);
+    this->u = glm::cross(glm::vec3(0, 1, 0), direction);
+    this->v = glm::cross(direction, u);
 }
-
-void Camera::setUp(glm::vec3 up) { this->up = up; }
 
 void Camera::setNear(float near) { this->near = near; }
 
@@ -56,15 +43,15 @@ void Camera::setFov(float fov) { this->fov = fov; }
 void Camera::move(glm::vec3 delta) { this->position += delta; }
 
 void Camera::rotate(float angleX, float angleY) {
-    glm::quat pitchQ = glm::angleAxis(angleY, this->right);
-    glm::quat yawQ = glm::angleAxis(angleX, this->up);
+    glm::quat pitchQ = glm::angleAxis(angleY, this->u);
+    glm::quat yawQ = glm::angleAxis(angleX, this->v);
     glm::quat rotationQ = pitchQ * yawQ;
     setDirection(glm::rotate(rotationQ, this->direction));
 }
 // get rotation matrix of camera
 glm::mat4 Camera::getRotationMatrix() {
-    glm::vec3 x = glm::normalize(this->right);
-    glm::vec3 y = glm::normalize(this->up);
+    glm::vec3 x = glm::normalize(this->u);
+    glm::vec3 y = glm::normalize(this->v);
     glm::vec3 z = glm::normalize(this->direction);
     glm::mat4 rotationMatrix = glm::mat4(1.0f);
     rotationMatrix[0][0] = x.x;
